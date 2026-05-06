@@ -1,0 +1,10 @@
+{
+    "salmon_version": "1.10.3",
+    "threads": "10",
+    "ont": [],
+    "targets": "/mnt/14T/Khushi/epi_k_004/data/transcriptome_ext.fa",
+    "libType": "A",
+    "alignments": "/mnt/14T/Khushi/epi_k_004/results/aligned_bamdir/KM1_tx_aMOD.bam",
+    "output": "/mnt/14T/Khushi/epi_k_004/results/salmon/KM1_quant",
+    "auxDir": "aux_info"
+}
