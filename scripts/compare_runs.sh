@@ -56,16 +56,14 @@ echo ""
 for event in "${EVENT_TYPES[@]}"; do
     printf "%-6s" "$event"
     for run in "${RUNS[@]}"; do
-        ioe_strict="${run}/events/events_${event}_strict.ioe"
-        ioe_var5="${run}/events/events_${event}_variable_5.ioe"
-        ioe_var10="${run}/events/events_${event}_variable_10.ioe"
+	        ioe_strict="${run}/events/events_${event}_strict.ioe"
+        
+	ioe_var=$(ls ${run}/events/events_${event}_variable_*.ioe 2>/dev/null | head -1)
 
         if [ -f "$ioe_strict" ]; then
             count=$(wc -l < "$ioe_strict")
-        elif [ -f "$ioe_var5" ]; then
-            count=$(wc -l < "$ioe_var5")
-        elif [ -f "$ioe_var10" ]; then
-            count=$(wc -l < "$ioe_var10")
+        elif [ -n "$ioe_var" ]; then
+            count=$(wc -l < "$ioe_var")
         else
             count="N/A"
         fi
