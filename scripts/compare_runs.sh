@@ -17,6 +17,7 @@ LABELS=("Strict" "Variable 1nt" "Variable 3nt" "Variable 5nt" "Variable 10nt" "V
 EVENT_TYPES=("SE" "A3" "A5" "MX" "RI" "AF" "AL")
 
 P_THRESHOLD=0.05
+DPSI_FILTER=0.1
 
 # =============================================================================
 # HELPER FUNCTION — count significant events
@@ -25,7 +26,7 @@ P_THRESHOLD=0.05
 count_sig() {
     local file=$1
     if [ -f "$file" ]; then
-        awk -v p="$P_THRESHOLD" 'NR>1 && $3!="nan" && $3+0 < p' "$file" | wc -l | tr -d ' '
+        awk -v p="$P_THRESHOLD" 'NR>1 && $3!="nan" && $3+0 < p && ($2 < 0 ? -$2 : $2) >= 0.1' "$file" | wc -l | tr -d ' '
     else
         echo "N/A"
     fi
@@ -78,7 +79,7 @@ done
 
 echo ""
 echo "============================================================"
-echo "SECTION 2 — Significant events CT8 vs CT20 (p < $P_THRESHOLD)"
+echo "SECTION 2 — Significant events CT8 vs CT20 (p < $P_THRESHOLD, |dPSI| >= $DPSI_FILTER)"
 echo "============================================================"
 echo ""
 
@@ -126,7 +127,7 @@ echo ""
 
 echo ""
 echo "============================================================"
-echo "SECTION 3 — Significant events CT20 vs PerKO (p < $P_THRESHOLD)"
+echo "SECTION 3 — Significant events CT20 vs PerKO (p < $P_THRESHOLD, |dPSI| >= $DPSI_FILTER)"
 echo "============================================================"
 echo ""
 
