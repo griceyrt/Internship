@@ -6,3 +6,5 @@ SUPPA/
 IGV/
 *.app/
 .DS_Store
+printer/
+*.pdf
