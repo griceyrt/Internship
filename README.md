@@ -1,6 +1,6 @@
 # Circadian Rhythm & Alternative Splicing
 
-**Internship project — Institut de Génomique Fonctionnelle de Lyon (ENS Lyon)**  
+**Internship project at the Institut de Génomique Fonctionnelle de Lyon (ENS Lyon)**  
 Supervisor: Khushi Mamgain · Kiran Padmanabhan  
 
 ---
