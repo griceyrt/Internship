@@ -1,10 +1,8 @@
 SUPPA/
 data/
-SUPPA/
 *.gtf
 .DS_Store
 IGV/
 *.app/
-.DS_Store
 printer/
 *.pdf
