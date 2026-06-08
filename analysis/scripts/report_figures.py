@@ -327,8 +327,8 @@ def fig_psi(outpath="fig3_psi_metric.png"):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Outputs paths
 if __name__ == "__main__":
-    fig_central_dogma("fig1_central_dogma.png")
-    fig_as_events("fig2_as_event_types.png")
-    fig_psi("fig3_psi_metric.png")
-    print("All figures saved.")
+    fig_central_dogma("figures/plots/fig1_central_dogma.png")
+    fig_as_events("figures/plots/fig2_as_event_types.png")
+    fig_psi("figures/plots/fig3_psi_metric.png")
