@@ -128,9 +128,10 @@ def fig_central_dogma(outpath="fig1_central_dogma.png"):
         "C = mature mRNA isoform    D = protein\n"
         "One gene (A) can produce multiple isoforms (C1, C2, C3) via alternative splicing."
     )
-    ax.text(0.5, 0.01, legend_text, ha="center", va="bottom",
-            fontsize=6.8, color=GRAY, style="italic",
-            transform=ax.transAxes)
+    # Saving the legend for the word report since it doesn't fit well in the figure:
+    # ax.text(0.5, 0.01, legend_text, ha="center", va="bottom",
+    #        fontsize=6.8, color=GRAY, style="italic",
+    #        transform=ax.transAxes)
 
     fig.tight_layout(pad=0.3)
     fig.savefig(outpath, dpi=200, bbox_inches="tight")
@@ -242,10 +243,11 @@ def fig_as_events(outpath="fig2_as_event_types.png"):
         ax.axhline(y - 0.10, color=GRAY_L, lw=0.4)
 
     # Legend
-    ax.text(0.5, 0.02,
-            "Colored boxes = exons.  Thin lines = introns.  Arc = skipped region.\n"
-            "SUPPA2 detects and quantifies all five event types from RNA-seq data.",
-            ha="center", va="bottom", fontsize=7, color=GRAY, style="italic")
+    # Saving the legend for the word report since it doesn't fit well in the figure:
+    # ax.text(0.5, 0.02,
+    #        "Colored boxes = exons.  Thin lines = introns.  Arc = skipped region.\n"
+    #        "SUPPA2 detects and quantifies all five event types from RNA-seq data.",
+    #        ha="center", va="bottom", fontsize=7, color=GRAY, style="italic")
 
     fig.tight_layout(pad=0.3)
     fig.savefig(outpath, dpi=200, bbox_inches="tight")
@@ -314,11 +316,11 @@ def fig_psi(outpath="fig3_psi_metric.png"):
     draw_psi_column(ax, 0.495, 0.5, 2)
     draw_psi_column(ax, 0.825, 1.0, 4)
 
-    # formula
-    ax.text(0.5, 0.06,
-            "PSI = (transcripts including event) / (all transcripts at that locus)\n"
-            "A change in PSI (dPSI) between conditions signals differential alternative splicing.",
-            ha="center", va="center", fontsize=7.5, color=GRAY, style="italic")
+    # Saving the legend for the word report since it doesn't fit well in the figure:
+    # ax.text(0.5, 0.06,
+    #        "PSI = (transcripts including event) / (all transcripts at that locus)\n"
+    #        "A change in PSI (dPSI) between conditions signals differential alternative splicing.",
+    #        ha="center", va="center", fontsize=7.5, color=GRAY, style="italic")
 
     fig.tight_layout(pad=0.3)
     fig.savefig(outpath, dpi=200, bbox_inches="tight")
