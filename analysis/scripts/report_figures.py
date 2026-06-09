@@ -1,9 +1,10 @@
 """
 report_figures.py
-Recreates the three figures for the UCBL internship report:
+Recreates the figures for the UCBL internship report:
     fig1_central_dogma.png
     fig2_as_event_types.png
     fig3_psi_metric.png
+    fig4_pipeline_overview.png
 
 Requirements: matplotlib, numpy
     pip install matplotlib numpy
@@ -327,6 +328,119 @@ def fig_psi(outpath="fig3_psi_metric.png"):
     plt.close(fig)
     print(f"Saved: {outpath}")
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# FIGURE 4 — Pipeline Overview
+# Add this function to report_figures.py, then add
+# fig_pipeline("figures/plots/fig4_pipeline_overview.png")
+# to the if __name__ == "__main__": block
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def fig_pipeline(outpath="figures/plots/fig4_pipeline_overview.png"):
+
+    def rounded_box(ax, x, y, w, h, facecolor, edgecolor, label, sublabel="", fontsize=8):
+        box = FancyBboxPatch((x, y), w, h,
+                             boxstyle="round,pad=0.012",
+                             facecolor=facecolor, edgecolor=edgecolor,
+                             linewidth=1.2, zorder=3)
+        ax.add_patch(box)
+        cx, cy = x + w/2, y + h/2
+        if sublabel:
+            ax.text(cx, cy + 0.022, label, ha="center", va="center",
+                    fontsize=fontsize, fontweight="bold", color=edgecolor, zorder=4)
+            ax.text(cx, cy - 0.022, sublabel, ha="center", va="center",
+                    fontsize=fontsize - 1, color=GRAY, zorder=4)
+        else:
+            ax.text(cx, cy, label, ha="center", va="center",
+                    fontsize=fontsize, fontweight="bold", color=edgecolor, zorder=4)
+
+    def arr(ax, x1, x2, y, color=GRAY, lw=1.2):
+        ax.annotate("", xy=(x2, y), xytext=(x1, y),
+                    arrowprops=dict(arrowstyle="-|>", color=color,
+                                    lw=lw, mutation_scale=10), zorder=3)
+
+    fig, ax = plt.subplots(figsize=(13, 5.5))
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+
+    BW = 0.11
+    BH = 0.13
+    GAP = 0.015
+
+    # Row labels
+    ax.text(0.01, 0.78, "Project 1", ha="left", va="center",
+            fontsize=9, fontweight="bold", color=BLUE, rotation=90)
+    ax.text(0.01, 0.35, "Project 2", ha="left", va="center",
+            fontsize=9, fontweight="bold", color=TEAL, rotation=90)
+
+    # Track 1 — Nanopore
+    track1_y = 0.62
+    xs = [0.05, 0.21, 0.37, 0.53, 0.69, 0.85]
+    labels1 = [
+        ("Mouse liver\nsamples",    "CT8 / CT20 / PerDKO CT20"),
+        ("Nanopore\nRNA-seq",       "Yutaka lab, Tokyo"),
+        ("Salmon\nTPM",             "custom GTF 155k tx"),
+        ("SUPPA2\ngenerateEvents",  "strict vs variable 1nt"),
+        ("PSI comparison\n+ diffSplice", "WT CT20 vs PerDKO CT20"),
+        ("IGV\nvalidation",         "candidate events"),
+    ]
+    for i, (x, (lbl, sub)) in enumerate(zip(xs, labels1)):
+        rounded_box(ax, x, track1_y, BW, BH, BLUE_L, BLUE, lbl, sub, fontsize=7.5)
+        if i < len(xs) - 1:
+            arr(ax, x + BW + GAP, xs[i+1] - GAP, track1_y + BH/2, color=BLUE)
+
+    # Track 2 — Illumina
+    track2_y = 0.18
+    xs2 = [0.05, 0.21, 0.37, 0.53, 0.69, 0.85]
+    labels2 = [
+        ("GEO GSE171975",           "Aviram et al. 2021"),
+        ("Illumina\nRNA-seq",       "4x WT + 3x PerDKO CT20"),
+        ("Salmon\nquantification",  "custom GTF 155k tx"),
+        ("DESeq2 +\nbatch correction", "tximport + limma"),
+        ("SUPPA2\npsiPerEvent",     "diffSplice WT vs PerDKO"),
+        ("Overlap\nanalysis",       "vs Project 1 findings"),
+    ]
+    for i, (x, (lbl, sub)) in enumerate(zip(xs2, labels2)):
+        rounded_box(ax, x, track2_y, BW, BH, TEAL_L, TEAL, lbl, sub, fontsize=7.5)
+        if i < len(xs2) - 1:
+            arr(ax, x + BW + GAP, xs2[i+1] - GAP, track2_y + BH/2, color=TEAL)
+
+    # Vertical connector between last boxes
+    cx_last = xs[-1] + BW/2
+    ax.annotate("", xy=(cx_last, track1_y - 0.01),
+                xytext=(cx_last, track2_y + BH),
+                arrowprops=dict(arrowstyle="-|>", color=PURP,
+                                lw=1.2, mutation_scale=9), zorder=3)
+    ax.text(cx_last + 0.015, (track1_y + track2_y + BH) / 2,
+            "orthogonal\nvalidation", ha="left", va="center",
+            fontsize=7, color=PURP, style="italic")
+
+    # Right bracket
+    bx = 0.975
+    ax.annotate("", xy=(bx, track1_y + BH/2), xytext=(bx, track2_y + BH/2),
+                arrowprops=dict(arrowstyle="-", color=PURP, lw=1.5,
+                                connectionstyle="bar,fraction=0.0"), zorder=3)
+    ax.text(bx + 0.01, (track1_y + track2_y + BH) / 2,
+            "Orthogonal\nValidation", ha="left", va="center",
+            fontsize=8, fontweight="bold", color=PURP)
+
+    # Shared GTF note
+    mid_y = (track1_y + track2_y + BH) / 2
+    ax.text(0.37 + BW/2, mid_y + 0.14,
+            "same reference transcriptome (custom GTF)", ha="center", va="center",
+            fontsize=7, color=GRAY, style="italic",
+            bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
+                      edgecolor=GRAY_L, linewidth=0.6))
+
+    # Title
+    ax.text(0.5, 0.97, "Computational pipeline overview",
+            ha="center", va="top", fontsize=11, fontweight="bold", color=GRAY)
+
+    fig.tight_layout(pad=0.3)
+    fig.savefig(outpath, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {outpath}")
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Outputs paths
@@ -334,3 +448,4 @@ if __name__ == "__main__":
     fig_central_dogma("figures/plots/fig1_central_dogma.png")
     fig_as_events("figures/plots/fig2_as_event_types.png")
     fig_psi("figures/plots/fig3_psi_metric.png")
+    fig_pipeline("figures/plots/fig4_pipeline_overview.png")
