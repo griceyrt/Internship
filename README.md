@@ -29,6 +29,7 @@ Internship/
 │   ├── figures/                    # Report figures (fig1-fig5) + report_figures.py
 │   └── docs/                       # Report PDF (when finalized)
 │
+├── papers/                         # Reference PDFs (gitignored)
 ├── IGV/                            # IGV application and saved sessions
 ├── SUPPA/                          # SUPPA2 tool
 └── README.md
@@ -42,8 +43,20 @@ Internship/
 - **Python** 3.8.20 (`suppa_env`) — data analysis and figure generation
 - **Bash** — pipeline automation
 
-## Notes
+## Setup
 
-- All large data files (GTF, BAM, FASTQ, SUPPA outputs) are excluded via `.gitignore`.
-- Run `report_figures.py` from the `Internship/` root to regenerate all report figures.
-- Bash scripts use dynamic paths relative to their location — no hardcoded absolute paths.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/griceyrt/Internship.git
+   cd Internship
+   ```
+
+2. Create and activate the Python environment:
+   ```bash
+   python3 -m venv suppa_env
+   source suppa_env/bin/activate
+   pip install pandas matplotlib matplotlib-venn jupyter
+   ```
+
+3. Install SUPPA2 by following the instructions at:
+   [https://github.com/comprna/SUPPA](https://github.com/comprna/SUPPA)
