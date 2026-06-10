@@ -5,6 +5,7 @@ Recreates the figures for the UCBL internship report:
     fig2_as_event_types.png
     fig3_psi_metric.png
     fig4_pipeline_overview.png
+    fig5_sequencing_comparison.png
 
 Requirements: matplotlib, numpy
     pip install matplotlib numpy
@@ -441,6 +442,188 @@ def fig_pipeline(outpath="figures/plots/fig4_pipeline_overview.png"):
     plt.close(fig)
     print(f"Saved: {outpath}")
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# FIGURE 5 — Short-read vs Long-read sequencing comparison
+# Paste this function into report_figures.py after fig_pipeline()
+# Then add this line to the if __name__ == "__main__": block:
+#   fig_sequencing_comparison("figures/plots/fig5_sequencing_comparison.png")
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def fig_sequencing_comparison(outpath="figures/plots/fig5_sequencing_comparison.png"):
+
+    def draw_rna_molecule(ax, y=0.86):
+        exon_colors = [BLUE, TEAL, BLUE, TEAL, BLUE]
+        positions = [0.05, 0.18, 0.33, 0.46, 0.61, 0.74, 0.89]
+        widths    = [0.10, 0.12, 0.10, 0.12, 0.10, 0.12, 0.08]
+        ax.plot([0.05, 0.97], [y, y], color=GRAY_L, lw=0.5, zorder=2)
+        for i, (x, w) in enumerate(zip(positions, widths)):
+            color = exon_colors[i % len(exon_colors)] if i % 2 == 0 else GRAY_L
+            box = FancyBboxPatch((x, y-0.015), w, 0.03,
+                                 boxstyle="round,pad=0.003",
+                                 facecolor=color, edgecolor="none", zorder=3)
+            ax.add_patch(box)
+
+    def arr(ax, x, y1, y2, color=GRAY):
+        ax.annotate("", xy=(x, y2), xytext=(x, y1),
+                    arrowprops=dict(arrowstyle="-|>", color=color,
+                                    lw=1.2, mutation_scale=10), zorder=4)
+
+    WHITE = "#FFFFFF"
+    fig, axes = plt.subplots(1, 2, figsize=(13, 8))
+    fig.patch.set_facecolor(WHITE)
+
+    # ── LEFT: Illumina ────────────────────────────────────────────
+    ax = axes[0]
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+    ax.add_patch(FancyBboxPatch((0, 0), 1, 1, boxstyle="round,pad=0.01",
+                                facecolor="#FDF6EE", edgecolor=AMBER_L, linewidth=1.5))
+
+    ax.text(0.5, 0.97, "Illumina", ha="center", va="top",
+            fontsize=13, fontweight="bold", color=AMBER)
+    ax.text(0.5, 0.93, "short-read sequencing (~150 nt)", ha="center", va="top",
+            fontsize=8.5, color=GRAY)
+    draw_rna_molecule(ax, y=0.86)
+    ax.text(0.5, 0.82, "original RNA molecule", ha="center",
+            fontsize=7.5, color=GRAY, style="italic")
+
+    arr(ax, 0.5, 0.80, 0.77, AMBER)
+    ax.text(0.5, 0.76, "1. Fragmentation into short pieces", ha="center",
+            fontsize=8, color=GRAY, style="italic")
+
+    # scattered fragments
+    frag_xs = [0.05,0.14,0.23,0.33,0.43,0.52,0.60,0.69,0.77,0.85,0.42,0.62,0.22,0.55]
+    frag_ys = [0.70,0.66,0.70,0.66,0.70,0.66,0.70,0.66,0.70,0.66,0.62,0.62,0.62,0.74]
+    frag_ws = [0.08,0.08,0.08,0.08,0.08,0.07,0.08,0.07,0.07,0.08,0.08,0.08,0.08,0.08]
+    frag_cs = [AMBER_L,BLUE_L,TEAL_L,AMBER_L,BLUE_L,TEAL_L,AMBER_L,BLUE_L,
+               TEAL_L,AMBER_L,BLUE_L,TEAL_L,AMBER_L,BLUE_L]
+    for x,y,w,c in zip(frag_xs,frag_ys,frag_ws,frag_cs):
+        ax.add_patch(FancyBboxPatch((x,y-0.012),w,0.022,boxstyle="round,pad=0.002",
+                                    facecolor=c,edgecolor="white",linewidth=0.5,zorder=3))
+    ax.text(0.5, 0.58, "millions of short fragments", ha="center",
+            fontsize=7.5, color=GRAY, style="italic")
+
+    arr(ax, 0.5, 0.57, 0.54, AMBER)
+    ax.text(0.5, 0.53, "2. Computational alignment and assembly", ha="center",
+            fontsize=8, color=GRAY, style="italic")
+
+    # stacked short reads with gaps
+    read_rows = [
+        [(0.05,0.09),(0.17,0.09),(0.32,0.09),(0.47,0.09),(0.62,0.09),(0.78,0.09)],
+        [(0.08,0.09),(0.22,0.09),(0.40,0.09),(0.55,0.09),(0.70,0.09),(0.85,0.09)],
+        [(0.06,0.09),(0.26,0.09),(0.50,0.09),(0.74,0.09),(0.88,0.07)],
+        [(0.10,0.09),(0.38,0.09),(0.60,0.09),(0.80,0.09)],
+    ]
+    for row, ry in zip(read_rows, [0.47,0.44,0.41,0.38]):
+        for (rx,rw) in row:
+            ax.add_patch(FancyBboxPatch((rx,ry-0.01),rw,0.018,
+                                        boxstyle="round,pad=0.002",
+                                        facecolor=AMBER_L,edgecolor=AMBER,
+                                        linewidth=0.4,zorder=3))
+
+    # gap annotations
+    for gx, gl in [(0.22, "gap?"), (0.66, "gap?")]:
+        ax.annotate("", xy=(gx+0.06, 0.34), xytext=(gx, 0.34),
+                    arrowprops=dict(arrowstyle="<->", color=CORAL, lw=1.2))
+        ax.text(gx+0.03, 0.32, gl, ha="center", fontsize=7, color=CORAL)
+
+    arr(ax, 0.5, 0.31, 0.28, AMBER)
+    ax.text(0.5, 0.27, "3. Reconstructed sequence (ambiguous)", ha="center",
+            fontsize=8, color=GRAY, style="italic")
+
+    positions = [0.05,0.16,0.28,0.40,0.52,0.64,0.76,0.87]
+    widths_r  = [0.09,0.08,0.09,0.09,0.09,0.09,0.08,0.09]
+    for i,(x,w) in enumerate(zip(positions,widths_r)):
+        if i in [2,5]:
+            ax.add_patch(FancyBboxPatch((x,0.21),w,0.025,boxstyle="round,pad=0.002",
+                                        facecolor=CORAL_L,edgecolor=CORAL,
+                                        linewidth=0.8,linestyle="dashed",zorder=3))
+            ax.text(x+w/2,0.2225,"?",ha="center",va="center",
+                    fontsize=7,color=CORAL,fontweight="bold")
+        else:
+            ax.add_patch(FancyBboxPatch((x,0.21),w,0.025,boxstyle="round,pad=0.002",
+                                        facecolor=AMBER_L if i%2==0 else TEAL_L,
+                                        edgecolor="none",zorder=3))
+
+    ax.add_patch(FancyBboxPatch((0.05,0.04),0.90,0.12,boxstyle="round,pad=0.01",
+                                facecolor=CORAL_L,edgecolor=CORAL,linewidth=1.2))
+    ax.text(0.5,0.135,"Ambiguous isoform reconstruction",ha="center",
+            fontsize=8.5,color=CORAL,fontweight="bold")
+    ax.text(0.5,0.085,"Short reads cannot distinguish\nbetween similar isoforms",
+            ha="center",fontsize=7.5,color=GRAY)
+
+    # ── RIGHT: Nanopore ───────────────────────────────────────────
+    ax = axes[1]
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+    ax.add_patch(FancyBboxPatch((0,0),1,1,boxstyle="round,pad=0.01",
+                                facecolor="#EEF7F3",edgecolor=TEAL_L,linewidth=1.5))
+
+    ax.text(0.5,0.97,"Nanopore",ha="center",va="top",
+            fontsize=13,fontweight="bold",color=TEAL)
+    ax.text(0.5,0.93,"long-read sequencing (up to ~50,000 nt)",ha="center",va="top",
+            fontsize=8.5,color=GRAY)
+    draw_rna_molecule(ax, y=0.86)
+    ax.text(0.5,0.82,"original RNA molecule",ha="center",
+            fontsize=7.5,color=GRAY,style="italic")
+
+    arr(ax, 0.5, 0.80, 0.77, TEAL)
+    ax.text(0.5,0.76,"1. Direct reading of full-length molecules",ha="center",
+            fontsize=8,color=GRAY,style="italic")
+
+    long_reads = [
+        (0.05,0.92,TEAL_L,TEAL),(0.05,0.92,BLUE_L,BLUE),
+        (0.05,0.92,TEAL_L,TEAL),(0.05,0.70,BLUE_L,BLUE),
+        (0.05,0.92,TEAL_L,TEAL),
+    ]
+    for (x,xe,fc,ec),ry in zip(long_reads,[0.72,0.68,0.64,0.60,0.56]):
+        ax.add_patch(FancyBboxPatch((x,ry-0.012),xe-x,0.022,
+                                    boxstyle="round,pad=0.002",
+                                    facecolor=fc,edgecolor=ec,linewidth=0.6,zorder=3))
+
+    ax.annotate("alternative\nisoform!", xy=(0.72,0.60),xytext=(0.80,0.67),
+                fontsize=7,color=BLUE,
+                arrowprops=dict(arrowstyle="->",color=BLUE,lw=0.8))
+    ax.text(0.5,0.52,"Each read = one complete molecule",ha="center",
+            fontsize=7.5,color=GRAY,style="italic")
+
+    arr(ax, 0.5, 0.51, 0.48, TEAL)
+    ax.text(0.5,0.47,"2. No assembly required",ha="center",
+            fontsize=8,color=GRAY,style="italic")
+
+    for x,w in zip(positions,widths_r):
+        ax.add_patch(FancyBboxPatch((x,0.40),w,0.025,boxstyle="round,pad=0.002",
+                                    facecolor=TEAL_L,edgecolor=TEAL,
+                                    linewidth=0.5,zorder=3))
+
+    arr(ax, 0.5, 0.39, 0.36, TEAL)
+    ax.text(0.5,0.35,"3. Two isoforms clearly identified",ha="center",
+            fontsize=8,color=GRAY,style="italic")
+
+    for i,(ry,exon_set,label,col,edg) in enumerate([
+        (0.29,[0,1,2,3,4,5,6,7],"known isoform",TEAL_L,TEAL),
+        (0.22,[0,1,3,5,6,7],"novel isoform (skipped exon)",BLUE_L,BLUE),
+    ]):
+        for j,(x,w) in enumerate(zip(positions,widths_r)):
+            if j in exon_set:
+                ax.add_patch(FancyBboxPatch((x,ry-0.012),w,0.020,
+                                            boxstyle="round,pad=0.002",
+                                            facecolor=col,edgecolor=edg,
+                                            linewidth=0.5,zorder=3))
+        ax.text(0.5,ry-0.026,label,ha="center",fontsize=7,color=edg)
+
+    ax.add_patch(FancyBboxPatch((0.05,0.04),0.90,0.12,boxstyle="round,pad=0.01",
+                                facecolor=TEAL_L,edgecolor=TEAL,linewidth=1.2))
+    ax.text(0.5,0.135,"Direct and unambiguous isoform identification",
+            ha="center",fontsize=8.5,color=TEAL,fontweight="bold")
+    ax.text(0.5,0.085,"Full-length reads reveal novel transcripts\nnot detectable with short reads",
+            ha="center",fontsize=7.5,color=GRAY)
+
+    fig.suptitle("Short-read vs long-read RNA sequencing: reconstruction challenge",
+                 fontsize=11,fontweight="bold",color=GRAY,y=0.999)
+    plt.tight_layout(rect=[0,0,1,0.998])
+    fig.savefig(outpath, dpi=200, bbox_inches="tight", facecolor=WHITE)
+    plt.close(fig)
+    print(f"Saved: {outpath}")
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Outputs paths
@@ -449,3 +632,4 @@ if __name__ == "__main__":
     fig_as_events("figures/plots/fig2_as_event_types.png")
     fig_psi("figures/plots/fig3_psi_metric.png")
     fig_pipeline("figures/plots/fig4_pipeline_overview.png")
+    fig_sequencing_comparison("figures/plots/fig5_sequencing_comparison.png")
