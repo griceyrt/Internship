@@ -34,7 +34,8 @@ CLUSTER_METHOD="OPTICS"
 # =============================================================================
 
 # Base directory (where salmon/ and GTF file are)
-BASE_DIR="/Users/gricey/Desktop/Internship/data"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="${SCRIPT_DIR}/../data"
 
 # GTF file
 GTF="${BASE_DIR}/transcriptome_productivity.gtf"
@@ -43,7 +44,7 @@ GTF="${BASE_DIR}/transcriptome_productivity.gtf"
 SALMON_DIR="${BASE_DIR}/salmon"
 
 # SUPPA script
-SUPPA="python3 /Users/gricey/Desktop/Internship/SUPPA/suppa.py"
+SUPPA="python3 ${SCRIPT_DIR}/../SUPPA/suppa.py"
 
 # =============================================================================
 # OUTPUT FOLDER — named automatically based on parameters

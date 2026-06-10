@@ -4,24 +4,23 @@
 # Filters SUPPA diffSplice output and returns IGV-ready coordinates
 #
 # USAGE:
-#   bash get_igv_candidates.sh
-#
-# Place this script inside your data/ folder (same level as output_strict/,
-# output_variable_1nt/, etc.)
+#   bash scripts/get_igv_candidates.sh
 # =============================================================================
 
 # ── CHANGE THESE PARAMETERS ──────────────────────────────────────────────────
-RUN="output_strict"       # output_strict | output_variable_1nt | output_variable_5nt | etc.
-EVENT_TYPE="SE"           # SE | RI | A3 | A5 | MX | AF | AL
-COMPARISON="CT8"          # CT8 (= CT8 vs CT20) | CT20 (= CT20 vs PerKO)
+RUN="output_strict"
+EVENT_TYPE="SE"
+COMPARISON="CT8"
 DPSI_THRESH=0.1
 PVAL_THRESH=0.05
 TOP_N=10
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Fixed paths (relative to data/ folder where this script lives)
-GTF="/Users/gricey/Desktop/Internship/data/transcriptome_productivity.gtf"
-DIFF_DIR="/Users/gricey/Desktop/Internship/data/${RUN}/diff"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="${SCRIPT_DIR}/../data"
+
+GTF="${BASE_DIR}/transcriptome_productivity.gtf"
+DIFF_DIR="${BASE_DIR}/${RUN}/diff"
 
 # Pick temp.0 (CT8 vs CT20) or temp.1 (CT20 vs PerKO)
 if [ "$COMPARISON" == "CT8" ]; then
