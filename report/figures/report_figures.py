@@ -332,11 +332,11 @@ def fig_psi(outpath="fig3_psi_metric.png"):
 # ═══════════════════════════════════════════════════════════════════════════════
 # FIGURE 4 — Pipeline Overview
 # Add this function to report_figures.py, then add
-# fig_pipeline("figures/plots/fig4_pipeline_overview.png")
+# fig_pipeline("report/figures/fig4_pipeline_overview.png")
 # to the if __name__ == "__main__": block
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def fig_pipeline(outpath="figures/plots/fig4_pipeline_overview.png"):
+def fig_pipeline(outpath="report/figures/fig4_pipeline_overview.png"):
 
     def rounded_box(ax, x, y, w, h, facecolor, edgecolor, label, sublabel="", fontsize=8):
         box = FancyBboxPatch((x, y), w, h,
@@ -446,10 +446,10 @@ def fig_pipeline(outpath="figures/plots/fig4_pipeline_overview.png"):
 # FIGURE 5 — Short-read vs Long-read sequencing comparison
 # Paste this function into report_figures.py after fig_pipeline()
 # Then add this line to the if __name__ == "__main__": block:
-#   fig_sequencing_comparison("figures/plots/fig5_sequencing_comparison.png")
+#   fig_sequencing_comparison("report/figures/fig5_sequencing_comparison.png")
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def fig_sequencing_comparison(outpath="figures/plots/fig5_sequencing_comparison.png"):
+def fig_sequencing_comparison(outpath="report/figures/fig5_sequencing_comparison.png"):
 
     def draw_rna_molecule(ax, y=0.86):
         exon_colors = [BLUE, TEAL, BLUE, TEAL, BLUE]
@@ -628,8 +628,8 @@ def fig_sequencing_comparison(outpath="figures/plots/fig5_sequencing_comparison.
 # ═══════════════════════════════════════════════════════════════════════════════
 # Outputs paths
 if __name__ == "__main__":
-    fig_central_dogma("figures/plots/fig1_central_dogma.png")
-    fig_as_events("figures/plots/fig2_as_event_types.png")
-    fig_psi("figures/plots/fig3_psi_metric.png")
-    fig_pipeline("figures/plots/fig4_pipeline_overview.png")
-    fig_sequencing_comparison("figures/plots/fig5_sequencing_comparison.png")
+    fig_central_dogma("report/figures/fig1_central_dogma.png")
+    fig_as_events("report/figures/fig2_as_event_types.png")
+    fig_psi("report/figures/fig3_psi_metric.png")
+    fig_pipeline("report/figures/fig4_pipeline_overview.png")
+    fig_sequencing_comparison("report/figures/fig5_sequencing_comparison.png")
