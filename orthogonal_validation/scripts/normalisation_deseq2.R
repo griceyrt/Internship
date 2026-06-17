@@ -49,7 +49,7 @@ conditions  <- c("WT", "WT", "WT", "WT", "KO", "KO", "KO", "KO")
 col_data <- data.frame(
   sample    = sample_names,
   condition = factor(conditions, levels = c("WT", "KO")),
-  row.names = sample_ids
+  row.names = sample_names
 )
 
 # quant.sf paths
