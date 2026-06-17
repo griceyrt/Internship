@@ -1,7 +1,7 @@
 # Internship — Alternative Splicing Analysis of the Murine Circadian Transcriptome
 
 **BSc in Bioinformatics internship** at the Institut de Genomique Fonctionnelle de Lyon (IGFL), ENS Lyon.  
-Supervised by Dr. Kiran Padmanabhan. April 27 – August 28, 2026.
+Supervised by Dr. Kiran Padmanabhan and PhD student Khushi Mamgain. April 27 – August 28, 2026.
 
 ---
 
@@ -40,8 +40,8 @@ Internship/
 │   └── presentations/              # Keynote slides for lab meetings
 │
 ├── report/                         # UCBL internship report
-│   ├── figures/                    # Report figures (fig1-fig5) + report_figures.py
-│   └── docs/                       # Report PDF (when finalized)
+│   ├── figures/                    # Report figures + report_figures.py
+│   └── docs/                       # Report PDF 
 │
 ├── papers/                         # Reference PDFs (gitignored)
 ├── IGV/                            # IGV application and saved sessions
