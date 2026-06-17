@@ -32,6 +32,7 @@ SUPPA_DATE    = "2026-06-17"
 ILLUMINA_DIR  = os.path.join(BASE_DIR, "results", f"suppa_{SUPPA_DATE}", "diff")
 NANOPORE_DIR  = os.path.join(BASE_DIR, "data", "nanopore_suppa")
 OUT_DIR       = os.path.join(BASE_DIR, "results", "figures")
+DESEQ_FILE    = os.path.join(BASE_DIR, "results", "normalisation", "deseq2_KO_vs_WT.tsv")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # Significance thresholds
