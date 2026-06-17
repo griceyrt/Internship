@@ -151,3 +151,54 @@ except ImportError:
     print("Install with: pip install matplotlib-venn --break-system-packages")
 
 print("\n=== DONE ===")
+
+# =============================================================================
+# BONUS: DE genes vs Spliced genes overlap
+# (suggested by colleague — are any genes both DE and differentially spliced?)
+# =============================================================================
+print("\n=== Bonus: DE genes vs Spliced genes ===")
+
+# Get significant DE gene IDs
+de = pd.read_csv(DESEQ_FILE, sep="\t", index_col=0)
+de = de.dropna(subset=["log2FoldChange", "padj"])
+de_sig = set(de[(abs(de["log2FoldChange"]) > 1.5) & (de["padj"] < 0.05)].index)
+
+# Extract gene IDs from significant Illumina splicing events
+# Event ID format: ENSMUSG00000109644;AL:7:...  → gene ID is before the semicolon
+illumina_sig_genes = set(e.split(";")[0] for e in illumina_sig)
+
+# Overlap
+de_splice_overlap = de_sig & illumina_sig_genes
+de_only   = de_sig - illumina_sig_genes
+splice_only = illumina_sig_genes - de_sig
+
+print(f"Significant DE genes          : {len(de_sig)}")
+print(f"Significant spliced genes     : {len(illumina_sig_genes)}")
+print(f"Both DE and spliced           : {len(de_splice_overlap)}")
+
+if de_splice_overlap:
+    print("\nGenes that are both DE and differentially spliced:")
+    for g in sorted(de_splice_overlap):
+        print(f"  {g}")
+
+# Venn diagram
+try:
+    fig, ax = plt.subplots(figsize=(6, 5))
+    venn2(
+        subsets=(len(de_only), len(splice_only), len(de_splice_overlap)),
+        set_labels=(f"DE genes\n(n={len(de_sig)})",
+                    f"Spliced genes\n(n={len(illumina_sig_genes)})"),
+        set_colors=("#D55E00", "#56B4E9"),
+        alpha=0.6,
+        ax=ax
+    )
+    ax.set_title("Genes with differential expression\nAND differential splicing (Illumina)", fontsize=11)
+    plt.tight_layout()
+    out_path = os.path.join(OUT_DIR, "bonus_DE_vs_splicing_venn.png")
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"Venn diagram saved: {out_path}")
+except ImportError:
+    print("matplotlib_venn not installed — skipping Venn diagram.")
+
+print("\n=== ALL DONE ===")
