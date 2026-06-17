@@ -7,3 +7,9 @@ IGV/
 printer/
 *.pdf
 papers/*.pdf
+
+# Large raw data files — re-downloadable, not for git
+raw_data/
+temp/
+*.sra
+*.fastq.gz

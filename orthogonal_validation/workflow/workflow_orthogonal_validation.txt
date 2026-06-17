@@ -1,0 +1,164 @@
+ORTHOGONAL VALIDATION WORKFLOW
+================================
+Goal: Validate splicing events from the lab's manuscript (Nanopore long-read data,
+      multiple timepoints) using public Illumina short-read RNA-seq data (GSE171975).
+      If the same splicing events appear in both technologies, the finding is validated.
+
+Comparison: Liver WT CT20 (n=3) vs Liver PerDKO CT20 (n=3) — public dataset GSE171975
+  WT:     GSM5239178, GSM5239179, GSM5239180  (Liver_WT_DD_CT20 A/B/C)
+  PerDKO: GSM5239226, GSM5239227, GSM5239228  (Liver_PerDKO_DD_CT20 A/B/C)
+
+Reference genome: mm39 (GRCm39)
+Custom GTF: transcriptome_productivity.gtf (available locally)
+
+
+==============================================================================
+TRACK 1 — SPLICING ANALYSIS
+==============================================================================
+
+--- SETUP [BASH] -------------------------------------------------------------
+
+STEP 1 — SRA download raw FASTQ files
+  6 samples, paired-end (x2)
+  Each sample = sample_1.fastq.gz + sample_2.fastq.gz
+
+STEP 2 — Download mm39 genome FASTA / Build gentrome.fa
+  Download: Mus_musculus.GRCm39.dna.primary_assembly.fa.gz from Ensembl
+  Build: gentrome.fa  (genome + transcriptome FASTA concatenated)
+         decoys.txt   (chromosome names from genome FASTA)
+  Standard salmon selective-alignment indexing step.
+
+--- SALMON [BASH] ------------------------------------------------------------
+
+STEP 3 — Build Salmon index (once)
+  Mode: mapping-based, NOT alignment-based
+  Input: raw FASTQ (no pre-alignment needed)
+    salmon index -t gentrome.fa -i transcriptome_ext_index \
+                 --decoys decoys.txt -k 31 --keepDuplicates
+
+STEP 4 — Salmon quantification (all 6 samples)
+  Run: BHARATH_get_sra_dump_fastq_run_salmon.sh
+  Output per sample: quant.sf
+    NumReads = column 5 — used by tximport/DESeq2
+
+  *** BRANCHING POINT ***
+  -> Track 1 continues at STEP 7
+  -> Track 2 starts at STEP 5a (run Steps 5a–6 before returning to Step 7)
+
+--- SPLICING ANALYSIS USING SUPPA [BASH / PYTHON] ---------------------------
+
+STEP 7 — generateEvents from GTF
+  suppa.py generateEvents -i transcriptome_productivity.gtf \
+                          -o transcriptome_ext -f ioe \
+                          -e SE SS MX RI FL -b S
+  Output: IOE files (one per event type: SE, A3, A5, MX, RI, AF, AL)
+  Boundary: -b S (strict) — confirmed by manuscript and Khushi
+
+STEP 8 — Compile expression table for SUPPA
+  Input: batch-corrected normalised expression table from Step 5d
+         (NOT raw Salmon TPM — uses normalised values as per manuscript)
+  Output: combined expression table (all 6 samples, transcripts x samples)
+
+STEP 9 — psiPerEvent
+  suppa.py psiPerEvent -i <event.ioe> \
+                       -e <normalised_expression_table> \
+                       -o output/
+  Output: .psi files per event type
+
+STEP 10a — Split PSI and expression table by condition (WT / PerDKO)
+  WT_CT20.psi        (GSM5239178, GSM5239179, GSM5239180)
+  PerDKO_CT20.psi    (GSM5239226, GSM5239227, GSM5239228)
+  WT_CT20_norm.tab
+  PerDKO_CT20_norm.tab
+
+STEP 10b — diffSplice (WT CT20 vs PerDKO)
+  suppa.py diffSplice --method empirical \
+                      --input <event.ioe> \
+                      --psi WT_CT20.psi PerDKO_CT20.psi \
+                      --tpm WT_CT20_norm.tab PerDKO_CT20_norm.tab \
+                      -gc -o diff/diff_<EVENT>
+  Significance filter: |dPSI| > 0.1 AND p < 0.05
+
+
+==============================================================================
+TRACK 2 — DIFFERENTIAL EXPRESSION
+==============================================================================
+
+--- NORMALISATION [R] --------------------------------------------------------
+
+STEP 5a — Import Salmon output into R
+  Use tximport to read all 6 quant.sf files into R.
+  tximport imports estimated counts (NOT TPM) for use with DESeq2.
+
+STEP 5b — Filter
+  Keep transcripts with >5 counts in ≥2 samples.
+
+STEP 5c — Normalize
+  counts / total reads per sample
+
+STEP 5d — limma removeBatchEffect
+  Output: batch-corrected normalised expression table
+  -> This table is the SUPPA input (Step 8)
+
+--- DESEQ [R] ----------------------------------------------------------------
+
+STEP 6 — DESeq2 differential expression
+  Run DESeq2 on the tximport counts object (raw counts from Step 5a).
+  Output: log2FC + padj per transcript (WT vs PerDKO)
+  -> Feeds into Step 13 (DE volcano plot)
+
+
+==============================================================================
+RESULTS  [PYTHON — matplotlib / pandas]
+==============================================================================
+
+STEP 11 — dPSI Volcano plot  (WT vs PerDKO)  [matplotlib]
+  X-axis: dPSI
+  Y-axis: -log10(p-value)
+  Vertical lines at dPSI = +0.1 and -0.1
+  Horizontal line at -log10(0.05)
+  Dots outside the box = significant differential splicing events.
+
+STEP 12 — Cross-reference with manuscript Nanopore results  [pandas]
+  Take the list of significant events from Step 10b.
+  Compare against the diffSpliced events reported in the manuscript.
+  Question to answer: do the same splicing events appear in both datasets?
+    - Illumina short-read (this project, GSE171975)
+    - Nanopore long-read (manuscript)
+  Overlap = orthogonal validation confirmed.
+  Output: list of validated events + overlap figure
+          (Venn diagram or scatter plot of dPSI values across both technologies)
+
+STEP 13 — DE volcano log2FC  (PerDKO vs WT)  [matplotlib]
+  X-axis: log2 fold change (PerDKO vs WT)
+  Y-axis: -log10(adjusted p-value)
+  Vertical lines at log2FC = +1.5 and -1.5
+  Horizontal line at -log10(0.05)
+  Dots on the right = upregulated in PerDKO
+  Dots on the left  = downregulated in PerDKO (relative to WT)
+  Significance cutoff:
+    |log2FC| > 1.5 AND padj < 0.05
+    (padj = adjusted p-value, corrected for multiple testing)
+
+
+==============================================================================
+TOOLS REQUIRED
+==============================================================================
+BASH:   sra-tools (prefetch), parallel-fastq-dump, salmon v1.5.2, suppa.py v2.3
+R:      tximport, DESeq2, limma
+PYTHON: matplotlib, pandas, numpy
+
+
+==============================================================================
+FILE STRUCTURE (suggested)
+==============================================================================
+orthogonal_validation/
+  raw_data/                        <- .sra files (if using prefetch)
+  temp/                            <- fastq.gz files
+  meta/                            <- SRR accession list
+  results/
+    <SRP>_salmon_<date>/           <- quant.sf per sample
+    <SRP>_suppa_<date>/            <- IOE, expression table, PSI, diffSplice
+  scripts/
+    bharaths_code/
+    project_one/

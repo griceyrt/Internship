@@ -1,0 +1,12 @@
+{
+  "read_files": [
+    "/Users/gricey/Desktop/Internship/orthogonal_validation/scripts/../temp/SRR9002567.fastq.gz"
+  ],
+  "expected_format": "U",
+  "compatible_fragment_ratio": 1.0,
+  "num_compatible_fragments": 3636971,
+  "num_assigned_fragments": 3636971,
+  "num_frags_with_concordant_consistent_mappings": 3636971,
+  "num_frags_with_inconsistent_or_orphan_mappings": 0,
+  "strand_mapping_bias": 0.0
+}
