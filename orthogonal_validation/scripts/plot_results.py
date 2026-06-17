@@ -3,8 +3,8 @@
 Orthogonal Validation — Steps 11 & 13
 Author: Gricey
 
-Step 11: dPSI volcano plot  (from SUPPA diffSplice)
-Step 13: DE volcano plot    (from DESeq2)
+Step 11: dPSI volcano plot  (Illumina SUPPA2 diffSplice, |dPSI|>0.1, p<0.3)
+Step 13: DE volcano plot    (DESeq2, |log2FC|>0.5, padj<0.05)
 
 Run from: orthogonal_validation/
 """
@@ -16,13 +16,12 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 
 # =============================================================================
-# PATHS — update SUPPA_DATE if needed
+# PATHS
 # =============================================================================
 BASE_DIR    = "/Users/gricey/Desktop/Internship/orthogonal_validation"
-SUPPA_DATE  = "2026-06-17"   # <-- update if different
+SUPPA_DATE  = "2026-06-17"
 SUPPA_DIR   = os.path.join(BASE_DIR, "results", f"suppa_{SUPPA_DATE}", "diff")
 DESEQ_FILE  = os.path.join(BASE_DIR, "results", "normalisation", "deseq2_KO_vs_WT.tsv")
 OUT_DIR     = os.path.join(BASE_DIR, "results", "figures")
@@ -30,10 +29,13 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 # =============================================================================
 # STEP 11 — dPSI Volcano Plot
+# Thresholds: |dPSI| > 0.1, p < 0.3
 # =============================================================================
 print("=== Step 11: dPSI Volcano Plot ===")
 
-# Event type colors
+DPSI_THRESH  = 0.1
+PVAL_SPLICE  = 0.3
+
 EVENT_COLORS = {
     "A3": "#E69F00",
     "A5": "#56B4E9",
@@ -44,7 +46,6 @@ EVENT_COLORS = {
     "SE": "#CC79A7",
 }
 
-# Load all dpsi files
 dfs = []
 for dpsi_file in sorted(glob.glob(os.path.join(SUPPA_DIR, "diff_*_strict.dpsi.temp.0"))):
     event_type = os.path.basename(dpsi_file).replace("diff_", "").replace("_strict.dpsi.temp.0", "")
@@ -54,32 +55,21 @@ for dpsi_file in sorted(glob.glob(os.path.join(SUPPA_DIR, "diff_*_strict.dpsi.te
     dfs.append(df)
 
 dpsi_df = pd.concat(dfs)
-
-# Negate dPSI: file is WT-KO, we want KO-WT (PerDKO minus WT)
-dpsi_df["dPSI"] = -dpsi_df["dPSI"]
-
-# Remove nan rows
+dpsi_df["dPSI"] = -dpsi_df["dPSI"]   # negate: file is WT-KO, we want KO-WT
 dpsi_df = dpsi_df.dropna(subset=["dPSI", "pval"])
 dpsi_df = dpsi_df[dpsi_df["pval"] > 0]
-
-# -log10 p-value
 dpsi_df["neg_log10_p"] = -np.log10(dpsi_df["pval"])
+dpsi_df["significant"] = (abs(dpsi_df["dPSI"]) > DPSI_THRESH) & (dpsi_df["pval"] < PVAL_SPLICE)
 
-# Significance flag
-dpsi_df["significant"] = (abs(dpsi_df["dPSI"]) > 0.1) & (dpsi_df["pval"] < 0.05)
+print(f"Total events with data : {len(dpsi_df)}")
+print(f"Significant events     : {dpsi_df['significant'].sum()}")
 
-print(f"Total events with data: {len(dpsi_df)}")
-print(f"Significant events: {dpsi_df['significant'].sum()}")
-
-# Plot
 fig, ax = plt.subplots(figsize=(8, 6))
 
-# Plot non-significant first (grey)
 ns = dpsi_df[~dpsi_df["significant"]]
 ax.scatter(ns["dPSI"], ns["neg_log10_p"],
            color="lightgrey", alpha=0.4, s=15, linewidths=0, zorder=1)
 
-# Plot significant by event type
 sig = dpsi_df[dpsi_df["significant"]]
 for etype, color in EVENT_COLORS.items():
     sub = sig[sig["event_type"] == etype]
@@ -88,16 +78,13 @@ for etype, color in EVENT_COLORS.items():
                    color=color, alpha=0.9, s=40, linewidths=0,
                    label=f"{etype} (n={len(sub)})", zorder=2)
 
-# Threshold lines
-ax.axvline(x=0.1,  color="black", linestyle="--", linewidth=0.8, alpha=0.6)
-ax.axvline(x=-0.1, color="black", linestyle="--", linewidth=0.8, alpha=0.6)
-ax.axhline(y=-np.log10(0.05), color="black", linestyle="--", linewidth=0.8, alpha=0.6)
+ax.axvline(x= DPSI_THRESH,  color="black", linestyle="--", linewidth=0.8, alpha=0.6)
+ax.axvline(x=-DPSI_THRESH,  color="black", linestyle="--", linewidth=0.8, alpha=0.6)
+ax.axhline(y=-np.log10(PVAL_SPLICE), color="black", linestyle="--", linewidth=0.8, alpha=0.6)
 
-# Labels
 ax.set_xlabel("dPSI (PerDKO − WT)", fontsize=12)
 ax.set_ylabel("−log₁₀(p-value)", fontsize=12)
 ax.set_title("Differential Splicing: PerDKO vs WT (CT16-20, Liver)\nGSE130613 — Illumina short-read", fontsize=11)
-
 ax.legend(title="Event type", bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=9)
 plt.tight_layout()
 
@@ -108,18 +95,21 @@ print(f"Saved: {out_path}")
 
 # =============================================================================
 # STEP 13 — DE Volcano Plot
+# Thresholds: |log2FoldChange| > 0.5, padj < 0.05
 # =============================================================================
 print("\n=== Step 13: DE Volcano Plot ===")
+
+LFC_THRESH  = 0.5
+PADJ_THRESH = 0.05
 
 de = pd.read_csv(DESEQ_FILE, sep="\t", index_col=0)
 de = de.dropna(subset=["log2FoldChange", "padj"])
 de = de[de["padj"] > 0]
 de["neg_log10_padj"] = -np.log10(de["padj"])
 
-# Significance categories
 de["category"] = "not significant"
-de.loc[(de["log2FoldChange"] >  1.5) & (de["padj"] < 0.05), "category"] = "up in PerDKO"
-de.loc[(de["log2FoldChange"] < -1.5) & (de["padj"] < 0.05), "category"] = "down in PerDKO"
+de.loc[(de["log2FoldChange"] >  LFC_THRESH) & (de["padj"] < PADJ_THRESH), "category"] = "up in PerDKO"
+de.loc[(de["log2FoldChange"] < -LFC_THRESH) & (de["padj"] < PADJ_THRESH), "category"] = "down in PerDKO"
 
 cat_colors = {
     "not significant": "lightgrey",
@@ -132,7 +122,6 @@ for cat, count in de["category"].value_counts().items():
     print(f"  {cat}: {count}")
 
 fig, ax = plt.subplots(figsize=(8, 6))
-
 for cat, color in cat_colors.items():
     sub = de[de["category"] == cat]
     alpha = 0.4 if cat == "not significant" else 0.85
@@ -141,15 +130,13 @@ for cat, color in cat_colors.items():
                color=color, alpha=alpha, s=size, linewidths=0,
                label=f"{cat} (n={len(sub)})", zorder=2 if cat != "not significant" else 1)
 
-# Threshold lines
-ax.axvline(x= 1.5, color="black", linestyle="--", linewidth=0.8, alpha=0.6)
-ax.axvline(x=-1.5, color="black", linestyle="--", linewidth=0.8, alpha=0.6)
-ax.axhline(y=-np.log10(0.05), color="black", linestyle="--", linewidth=0.8, alpha=0.6)
+ax.axvline(x= LFC_THRESH,  color="black", linestyle="--", linewidth=0.8, alpha=0.6)
+ax.axvline(x=-LFC_THRESH,  color="black", linestyle="--", linewidth=0.8, alpha=0.6)
+ax.axhline(y=-np.log10(PADJ_THRESH), color="black", linestyle="--", linewidth=0.8, alpha=0.6)
 
 ax.set_xlabel("log₂ fold change (PerDKO / WT)", fontsize=12)
 ax.set_ylabel("−log₁₀(adjusted p-value)", fontsize=12)
 ax.set_title("Differential Expression: PerDKO vs WT (CT16-20, Liver)\nGSE130613 — Illumina short-read", fontsize=11)
-
 ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=9)
 plt.tight_layout()
 
