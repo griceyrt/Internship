@@ -145,7 +145,7 @@ print(f"Total genes: {len(de)}")
 for cat, count in de["category"].value_counts().items():
     print(f"  {cat}: {count}")
 
-fig, ax = plt.subplots(figsize=(8, 6))
+fig, ax = plt.subplots(figsize=(11, 8))
 for cat, color in cat_colors.items():
     sub = de[de["category"] == cat]
     alpha = 0.4 if cat == "not significant" else 0.85
@@ -158,30 +158,38 @@ ax.axvline(x= LFC_THRESH,  color="black", linestyle="--", linewidth=0.8, alpha=0
 ax.axvline(x=-LFC_THRESH,  color="black", linestyle="--", linewidth=0.8, alpha=0.6)
 ax.axhline(y=-np.log10(PADJ_THRESH), color="black", linestyle="--", linewidth=0.8, alpha=0.6)
 
-# Label selected genes
+# Label selected genes — keep original dot color, add white-box label + connector
 texts = []
 for gene in CIRCADIAN_GENES:
     gid = name_to_id.get(gene)
     if gid and gid in de.index:
         x = de.loc[gid, "log2FoldChange"]
         y = de.loc[gid, "neg_log10_padj"]
-        ax.scatter(x, y, color="black", s=50, zorder=5, linewidths=0)
-        texts.append(ax.text(x, y, gene, fontsize=8, fontweight="bold",
-                             zorder=6, clip_on=False))
+        dot_color = cat_colors.get(de.loc[gid, "category"], "lightgrey")
+        ax.scatter(x, y, color=dot_color, s=70, zorder=5,
+                   edgecolors="black", linewidths=0.8)
+        texts.append(ax.text(
+            x, y, gene,
+            fontsize=9, fontweight="bold", zorder=6, clip_on=False,
+            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.75)
+        ))
 
-adjust_text(texts, ax=ax,
-            expand=(1.5, 1.5),
-            arrowprops=dict(arrowstyle="-", color="black", lw=0.6))
+adjust_text(
+    texts, ax=ax,
+    expand=(2.2, 2.2),
+    force_text=(1.0, 1.5),
+    force_points=(0.4, 0.6),
+    arrowprops=dict(arrowstyle="-", color="#333333", lw=0.8)
+)
 
 ax.set_xlabel("log₂ fold change (PerDKO / WT)", fontsize=12)
 ax.set_ylabel("−log₁₀(adjusted p-value)", fontsize=12)
 ax.set_title("Differential Expression: PerDKO vs WT (CT16-20, Liver)\nGSE130613 — Illumina short-read", fontsize=11)
 ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=9)
-# Extra margin so labels don't get clipped at edges
 x_min, x_max = ax.get_xlim()
 y_min, y_max = ax.get_ylim()
-ax.set_xlim(x_min - 0.5, x_max + 0.5)
-ax.set_ylim(y_min, y_max + 0.5)
+ax.set_xlim(x_min - 0.8, x_max + 0.8)
+ax.set_ylim(y_min, y_max + 1.5)
 plt.tight_layout()
 
 out_path = os.path.join(OUT_DIR, "step13_DE_volcano.png")
