@@ -42,35 +42,48 @@ fasterq-dump --version >> $LOG
 
 cat "${BASE_DIR}/meta/${1}_Acc_List.txt" | while read line
 do
+    echo ""
+    echo "======================================"
+    echo "Processing sample: $line"
+    echo "======================================"
+
     # Fetch the .sra file
+    echo "[1/4] Prefetching $line..."
     prefetch -O "${BASE_DIR}/raw_data/" $line \
         >> $LOG
 
     # Extract the fastq file (single-end: fasterq-dump, produces one file)
     if [ ! -f "${BASE_DIR}/temp/${line}.fastq.gz" ]; then
+        echo "[2/4] Converting .sra to .fastq.gz..."
         fasterq-dump --threads 6 \
             --outdir "${BASE_DIR}/temp/" \
             "${BASE_DIR}/raw_data/${line}/${line}.sra" \
             >> $LOG 2>&1
         gzip "${BASE_DIR}/temp/${line}.fastq"
+    else
+        echo "[2/4] FASTQ already exists, skipping fasterq-dump."
     fi
 
     # Trim adapters + polyA/T/G with cutadapt (updated 2026-06-19 per Bharath)
     TRIMMED="${BASE_DIR}/temp/${line}_trimmed_full.fastq.gz"
     if [ ! -f "$TRIMMED" ]; then
+        echo "[3/4] Trimming adapters with cutadapt..."
         cutadapt \
             -a AGATCGGAAGAG \
-            -a "A{10}" \
-            -a "T{10}" \
-            -a "G{10}" \
+            -a "A{12}" \
+            -a "T{12}" \
+            -a "G{12}" \
             --minimum-length 20 \
             -j $CORES \
             -o "$TRIMMED" \
             "${BASE_DIR}/temp/${line}.fastq.gz" \
             >> $LOG 2>&1
+    else
+        echo "[3/4] Trimmed file already exists, skipping cutadapt."
     fi
 
     # Run salmon quantification (single-end: -r instead of -1/-2)
+    echo "[4/4] Running Salmon quantification..."
     salmon quant -i $SALMON_INDEX \
         -l A \
         -p $CORES \
@@ -78,4 +91,11 @@ do
         -r "$TRIMMED" \
         -o "${OUTDIR}/${line}/" \
         >> $LOG 2>&1
+    echo "Done with $line!"
 done
+
+echo ""
+echo "======================================"
+echo "All samples processed successfully!"
+echo "Results in: $OUTDIR"
+echo "======================================"
