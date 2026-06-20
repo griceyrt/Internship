@@ -1,15 +1,22 @@
 ORTHOGONAL VALIDATION WORKFLOW
 ================================
 Goal: Validate splicing events from the lab's manuscript (Nanopore long-read data,
-      multiple timepoints) using public Illumina short-read RNA-seq data (GSE171975).
+      multiple timepoints) using public Illumina short-read RNA-seq data (GSE130613).
       If the same splicing events appear in both technologies, the finding is validated.
 
-Comparison: Liver WT CT20 (n=3) vs Liver PerDKO CT20 (n=3) — public dataset GSE171975
-  WT:     GSM5239178, GSM5239179, GSM5239180  (Liver_WT_DD_CT20 A/B/C)
-  PerDKO: GSM5239226, GSM5239227, GSM5239228  (Liver_PerDKO_DD_CT20 A/B/C)
+Dataset: GSE130613 (Manella & Asher, PNAS 2020) — normoxia DD controls, liver only
+  NOTE: Both candidate datasets (GSE171975 and GSE130613) are MARS-Seq 3' end sequencing
+        — not ideal for splicing but approved by Bharath. Low mapping rates documented.
+  NOTE: Original authors used STAR + HTSeq-count on mm10. We use Salmon + mm39.
+
+Comparison: Liver WT CT16-20 (n=4) vs Liver PerDKO CT16-20 (n=4) — constant darkness
+  WT:     SRR9002567, SRR9002568, SRR9002569, SRR9002570
+  PerDKO: SRR9002583, SRR9002584, SRR9002585, SRR9002586
+  SRP accession: SRP194523
 
 Reference genome: mm39 (GRCm39)
-Custom GTF: transcriptome_productivity.gtf (available locally)
+Custom transcriptome: transcriptome_ext.fa (provided by Khushi)
+Custom GTF: transcriptome_productivity.gtf (in boundary_analysis/data/)
 
 
 ==============================================================================
@@ -18,66 +25,91 @@ TRACK 1 — SPLICING ANALYSIS
 
 --- SETUP [BASH] -------------------------------------------------------------
 
-STEP 1 — SRA download raw FASTQ files
-  6 samples, paired-end (x2)
-  Each sample = sample_1.fastq.gz + sample_2.fastq.gz
+STEP 1 — Download raw FASTQ files from SRA
+  8 samples, SINGLE-end (MARS-Seq 3' end sequencing)
+  Script: scripts/get_sra_dump_fastq_run_salmon.sh
+  Tools: prefetch + fasterq-dump (sra-tools)
+  Output: temp/<SRR>.fastq.gz
 
-STEP 2 — Download mm39 genome FASTA / Build gentrome.fa
-  Download: Mus_musculus.GRCm39.dna.primary_assembly.fa.gz from Ensembl
-  Build: gentrome.fa  (genome + transcriptome FASTA concatenated)
-         decoys.txt   (chromosome names from genome FASTA)
-  Standard salmon selective-alignment indexing step.
+STEP 1b — Adapter trimming (cutadapt)
+  Added 2026-06-18 per Bharath's email (GEO metadata states cutadapt was used)
+  Adapter: AGATCGGAAGAGCACACGTCTGAACTCCAGTCA (standard Illumina TruSeq Read 1)
+  Flags: --minimum-length 20
+  Output: temp/<SRR>_trimmed.fastq.gz
+  NOTE: Tested on SRR9002567 — improvement from 56.71% to 60.55% (modest).
+        Decision on rerunning all 8 samples pending Bharath's response.
+
+STEP 2 — Build Salmon index (once, already built)
+  Input: transcriptome_ext.fa + mm39 genome FASTA
+  Build gentrome_ext.fa (transcriptome + genome concatenated) and decoys.txt
+  Command:
+    salmon index -t data/gentrome_ext.fa \
+                 -i data/transcriptome_ext_index \
+                 --decoys data/decoys.txt \
+                 -k 31 --keepDuplicates
+  Index location: data/transcriptome_ext_index/
 
 --- SALMON [BASH] ------------------------------------------------------------
 
-STEP 3 — Build Salmon index (once)
-  Mode: mapping-based, NOT alignment-based
-  Input: raw FASTQ (no pre-alignment needed)
-    salmon index -t gentrome.fa -i transcriptome_ext_index \
-                 --decoys decoys.txt -k 31 --keepDuplicates
+STEP 3 — Salmon quantification (all 8 samples)
+  Script: scripts/get_sra_dump_fastq_run_salmon.sh SRP194523 data/transcriptome_ext_index
+  Mode: quasi-mapping, single-end (-r flag), library auto-detect (-l A)
+  Salmon detected: -l U (unstranded) — confirmed correct (compatible_fragment_ratio=1.0)
+  Flags: --seqBias --gcBias
+  Output: results/SRP194523_salmon_<date>/<SRR>/quant.sf (8 files)
 
-STEP 4 — Salmon quantification (all 6 samples)
-  Run: BHARATH_get_sra_dump_fastq_run_salmon.sh
-  Output per sample: quant.sf
-    NumReads = column 5 — used by tximport/DESeq2
+  Mapping rates (original, untrimmed):
+    SRR9002567 WT:     56.71%
+    SRR9002568 WT:     57.22%
+    SRR9002569 WT:     70.17%  (outlier)
+    SRR9002570 WT:     56.89%
+    SRR9002583 PerDKO: 47.26%
+    SRR9002584 PerDKO: 46.62%
+    SRR9002585 PerDKO: 43.82%
+    SRR9002586 PerDKO: 47.54%
+
+  Low rates documented as expected for MARS-Seq 3' end data + custom transcriptome.
 
   *** BRANCHING POINT ***
   -> Track 1 continues at STEP 7
-  -> Track 2 starts at STEP 5a (run Steps 5a–6 before returning to Step 7)
+  -> Track 2 starts at STEP 5a (run Steps 5a–6 in parallel)
 
 --- SPLICING ANALYSIS USING SUPPA [BASH / PYTHON] ---------------------------
 
 STEP 7 — generateEvents from GTF
   suppa.py generateEvents -i transcriptome_productivity.gtf \
-                          -o transcriptome_ext -f ioe \
-                          -e SE SS MX RI FL -b S
-  Output: IOE files (one per event type: SE, A3, A5, MX, RI, AF, AL)
+                          -o results/suppa_<date>/transcriptome_ext \
+                          -f ioe -e SE SS MX RI FL -b S
+  Output: IOE files (SE, A3, A5, MX, RI, AF, AL)
   Boundary: -b S (strict) — confirmed by manuscript and Khushi
 
 STEP 8 — Compile expression table for SUPPA
-  Input: batch-corrected normalised expression table from Step 5d
-         (NOT raw Salmon TPM — uses normalised values as per manuscript)
-  Output: combined expression table (all 6 samples, transcripts x samples)
+  Input: normalised expression table from Step 5c (NOT raw Salmon TPM)
+  Output: results/normalisation/combined_norm.tab
+  NOTE: Batch correction SKIPPED — no batch info available for GSE130613 DD samples
 
 STEP 9 — psiPerEvent
   suppa.py psiPerEvent -i <event.ioe> \
-                       -e <normalised_expression_table> \
-                       -o output/
+                       -e combined_norm.tab \
+                       -o results/suppa_<date>/
   Output: .psi files per event type
 
-STEP 10a — Split PSI and expression table by condition (WT / PerDKO)
-  WT_CT20.psi        (GSM5239178, GSM5239179, GSM5239180)
-  PerDKO_CT20.psi    (GSM5239226, GSM5239227, GSM5239228)
-  WT_CT20_norm.tab
-  PerDKO_CT20_norm.tab
+STEP 10a — Split PSI and expression table by condition
+  *_WT.psi       (SRR9002567–70)
+  *_KO.psi       (SRR9002583–86)
+  WT_norm.tab
+  KO_norm.tab
 
-STEP 10b — diffSplice (WT CT20 vs PerDKO)
+STEP 10b — diffSplice (WT vs PerDKO)
   suppa.py diffSplice --method empirical \
                       --input <event.ioe> \
-                      --psi WT_CT20.psi PerDKO_CT20.psi \
-                      --tpm WT_CT20_norm.tab PerDKO_CT20_norm.tab \
-                      -gc -o diff/diff_<EVENT>
-  Significance filter: |dPSI| > 0.1 AND p < 0.05
+                      --psi *_WT.psi *_KO.psi \
+                      --tpm WT_norm.tab KO_norm.tab \
+                      -gc -o results/suppa_<date>/diff/diff_<EVENT>
+  Output: diff_*.dpsi.temp.0
+  Significance filter (Illumina): |dPSI| > 0.1 AND p < 0.3
+    NOTE: relaxed from 0.05 — low power at n=4 replicates with empirical method
+  Sign convention: dPSI in output file = WT - KO; negated in plots to show KO - WT
 
 
 ==============================================================================
@@ -87,78 +119,111 @@ TRACK 2 — DIFFERENTIAL EXPRESSION
 --- NORMALISATION [R] --------------------------------------------------------
 
 STEP 5a — Import Salmon output into R
-  Use tximport to read all 6 quant.sf files into R.
-  tximport imports estimated counts (NOT TPM) for use with DESeq2.
+  Script: scripts/normalisation_deseq2.R
+  tximport reads all 8 quant.sf files (transcript-level)
+  tx2gene built from transcriptome_productivity.gtf
 
 STEP 5b — Filter
-  Keep transcripts with >5 counts in ≥2 samples.
+  Keep transcripts with >5 counts in ≥2 samples
+  155,263 → 20,754 transcripts retained
 
 STEP 5c — Normalize
   counts / total reads per sample
+  Output: results/normalisation/combined_norm.tab  (SUPPA input)
 
-STEP 5d — limma removeBatchEffect
-  Output: batch-corrected normalised expression table
-  -> This table is the SUPPA input (Step 8)
-
---- DESEQ [R] ----------------------------------------------------------------
+--- DESEQ2 [R] ---------------------------------------------------------------
 
 STEP 6 — DESeq2 differential expression
-  Run DESeq2 on the tximport counts object (raw counts from Step 5a).
-  Output: log2FC + padj per transcript (WT vs PerDKO)
-  -> Feeds into Step 13 (DE volcano plot)
+  Run DESeq2 on raw tximport counts (NOT normalized values)
+  Significance: |log2FC| > 0.5 AND padj < 0.05  (Kiran's decision, finalized 2026-06-18)
+  Output: results/normalisation/deseq2_KO_vs_WT.tsv
+  343 significant DE genes
+  -> Feeds into Step 13 (DE volcano) and Step 14 (DE vs splicing Venn)
 
 
 ==============================================================================
 RESULTS  [PYTHON — matplotlib / pandas]
 ==============================================================================
 
-STEP 11 — dPSI Volcano plot  (WT vs PerDKO)  [matplotlib]
-  X-axis: dPSI
+STEP 11 — dPSI Volcano plot  (KO - WT)  [matplotlib]
+  Script: scripts/plot_results.py
+  X-axis: dPSI (negated: KO - WT)
   Y-axis: -log10(p-value)
-  Vertical lines at dPSI = +0.1 and -0.1
-  Horizontal line at -log10(0.05)
-  Dots outside the box = significant differential splicing events.
+  Thresholds: |dPSI| > 0.1, p < 0.3
+  Output: results/figures/step11_dPSI_volcano.png
+  532 significant splicing events → 457 unique genes
 
-STEP 12 — Cross-reference with manuscript Nanopore results  [pandas]
-  Take the list of significant events from Step 10b.
-  Compare against the diffSpliced events reported in the manuscript.
-  Question to answer: do the same splicing events appear in both datasets?
-    - Illumina short-read (this project, GSE171975)
-    - Nanopore long-read (manuscript)
-  Overlap = orthogonal validation confirmed.
-  Output: list of validated events + overlap figure
-          (Venn diagram or scatter plot of dPSI values across both technologies)
+STEP 12 — Cross-reference with Nanopore diffSplice results  [pandas]
+  Script: scripts/crossreference.py
+  Illumina events (|dPSI|>0.1, p<0.3) vs Nanopore events (|dPSI|>0.1, p<0.05)
+  Nanopore data: data/nanopore_suppa/ (Khushi's res_*.dpsi.temp.0 files)
+  Match on exact event ID
+  Output: results/figures/step12_overlap_venn.png
+          results/tables/step12_overlap_events.xlsx
+  32 overlapping events across 31 unique genes
+  Validated at strict p<0.05: Cpeb4, Mup2, 0610005C13Rik
 
 STEP 13 — DE volcano log2FC  (PerDKO vs WT)  [matplotlib]
-  X-axis: log2 fold change (PerDKO vs WT)
-  Y-axis: -log10(adjusted p-value)
-  Vertical lines at log2FC = +1.5 and -1.5
-  Horizontal line at -log10(0.05)
-  Dots on the right = upregulated in PerDKO
-  Dots on the left  = downregulated in PerDKO (relative to WT)
-  Significance cutoff:
-    |log2FC| > 1.5 AND padj < 0.05
-    (padj = adjusted p-value, corrected for multiple testing)
+  Script: scripts/plot_results.py
+  X-axis: log2FC (KO - WT)
+  Y-axis: -log10(padj)
+  Thresholds: |log2FC| > 0.5, padj < 0.05
+  27 gene labels selected by Kiran (circadian: Dbp, Nr1d1, Nr1d2, Per3, Clock,
+    Arntl, Cry1, Ciart; Cyp450/metabolism; immune)
+  Output: results/figures/step13_DE_volcano.png
+
+STEP 14 — DE vs Splicing Venn  [matplotlib]
+  Script: scripts/plot_results.py
+  DE genes (343) vs Illumina spliced genes (457)
+  DE only: 325 | Both DE and spliced: 18 | Spliced only: 439
+  Output: results/figures/step14_DE_vs_splicing_venn.png
+  Tables: results/tables/step14_DE_only.xlsx
+          results/tables/step14_DE_and_spliced.xlsx
+          results/tables/step14_spliced_only.xlsx
+
+
+==============================================================================
+DELIVERABLES
+==============================================================================
+Final outputs copied to: GSE130613_vs_Nanopore/
+  figures/: step11–14 PNG files
+  tables/:  step12 + step14 XLSX files
+Documentation: notebooks/ORTHOGONAL_VALIDATION.md (Notion-ready)
 
 
 ==============================================================================
 TOOLS REQUIRED
 ==============================================================================
-BASH:   sra-tools (prefetch), parallel-fastq-dump, salmon v1.5.2, suppa.py v2.3
+BASH:   sra-tools (prefetch, fasterq-dump), cutadapt, salmon 2.0.0, suppa.py v2.3
 R:      tximport, DESeq2, limma
-PYTHON: matplotlib, pandas, numpy
+PYTHON: matplotlib, pandas, numpy, upsetplot/matplotlib-venn
 
 
 ==============================================================================
-FILE STRUCTURE (suggested)
+FILE STRUCTURE
 ==============================================================================
 orthogonal_validation/
-  raw_data/                        <- .sra files (if using prefetch)
-  temp/                            <- fastq.gz files
-  meta/                            <- SRR accession list
+  raw_data/                        <- .sra files (prefetch output)
+  temp/                            <- <SRR>.fastq.gz + <SRR>_trimmed.fastq.gz
+  meta/                            <- SRP194523_Acc_List.txt
+  data/
+    transcriptome_ext.fa           <- Khushi's custom transcriptome
+    gentrome_ext.fa                <- transcriptome + mm39 genome (for Salmon index)
+    decoys.txt
+    transcriptome_ext_index/       <- Salmon index
   results/
-    <SRP>_salmon_<date>/           <- quant.sf per sample
-    <SRP>_suppa_<date>/            <- IOE, expression table, PSI, diffSplice
+    SRP194523_salmon_<date>/       <- quant.sf per sample (8 folders)
+    normalisation/                 <- combined_norm.tab, deseq2_KO_vs_WT.tsv
+    suppa_<date>/                  <- IOE, PSI, diffSplice output
+    figures/                       <- step11–14 PNG
+    tables/                        <- step12 + step14 XLSX
   scripts/
+    get_sra_dump_fastq_run_salmon.sh
+    normalisation_deseq2.R
+    run_suppa.sh
+    plot_results.py
+    crossreference.py
     bharaths_code/
-    project_one/
+  notebooks/
+    ORTHOGONAL_VALIDATION.md
+  GSE130613_vs_Nanopore/           <- final deliverables copy

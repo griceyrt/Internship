@@ -1,8 +1,13 @@
 #!/bin/bash
 # Adapted from BHARATH_get_sra_dump_fastq_run_salmon.sh
-# Change: single-end mode (GSE171975 samples are MARS-Seq, layout = SINGLE)
+# Change: single-end mode (GSE130613 samples are MARS-Seq, layout = SINGLE)
 #   - replaced parallel-fastq-dump with fasterq-dump (built into sra-tools)
 #   - replaced -1/-2 with -r in salmon quant
+#   - -l A detects -l U (stranded-reverse, confirmed by strand_mapping_bias=0.0)
+#   - 2026-06-18: added cutadapt adapter trimming step
+#   - 2026-06-19: updated trimming per Bharath's Zoom — full trim:
+#     adapter AGATCGGAAGAG + polyA (A{10}) + polyT (T{10}) + polyG (G{10})
+#     polyG is a NextSeq 500 two-color chemistry artifact
 #
 # USAGE: bash scripts/get_sra_dump_fastq_run_salmon.sh <SRP_accession> [path/to/salmon/index]
 # Run from: orthogonal_validation/
@@ -50,12 +55,27 @@ do
         gzip "${BASE_DIR}/temp/${line}.fastq"
     fi
 
+    # Trim adapters + polyA/T/G with cutadapt (updated 2026-06-19 per Bharath)
+    TRIMMED="${BASE_DIR}/temp/${line}_trimmed_full.fastq.gz"
+    if [ ! -f "$TRIMMED" ]; then
+        cutadapt \
+            -a AGATCGGAAGAG \
+            -a "A{10}" \
+            -a "T{10}" \
+            -a "G{10}" \
+            --minimum-length 20 \
+            -j $CORES \
+            -o "$TRIMMED" \
+            "${BASE_DIR}/temp/${line}.fastq.gz" \
+            >> $LOG 2>&1
+    fi
+
     # Run salmon quantification (single-end: -r instead of -1/-2)
     salmon quant -i $SALMON_INDEX \
         -l A \
         -p $CORES \
         --seqBias --gcBias -q \
-        -r "${BASE_DIR}/temp/${line}.fastq.gz" \
+        -r "$TRIMMED" \
         -o "${OUTDIR}/${line}/" \
-        >> $LOG
+        >> $LOG 2>&1
 done

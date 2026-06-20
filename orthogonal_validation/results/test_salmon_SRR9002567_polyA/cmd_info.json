@@ -1,0 +1,13 @@
+{
+  "salmon_version": "2.0.0",
+  "index": "data/transcriptome_ext_index",
+  "libType": "A",
+  "output": "results/test_salmon_SRR9002567_polyA/",
+  "mates1": [],
+  "mates2": [],
+  "unmatedReads": [
+    "temp/SRR9002567_trimmed_polyA.fastq.gz"
+  ],
+  "threads": 7,
+  "sketch": false
+}
