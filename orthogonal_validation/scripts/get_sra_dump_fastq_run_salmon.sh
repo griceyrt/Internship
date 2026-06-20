@@ -84,14 +84,17 @@ do
 
     # Run salmon quantification (single-end: -r instead of -1/-2)
     echo "[4/4] Running Salmon quantification..."
+    SALMON_START=$(date +%s)
     salmon quant -i $SALMON_INDEX \
         -l A \
         -p $CORES \
-        --seqBias --gcBias -q \
+        --seqBias --gcBias \
         -r "$TRIMMED" \
         -o "${OUTDIR}/${line}/" \
-        >> $LOG 2>&1
-    echo "Done with $line!"
+        1>> $LOG
+    SALMON_END=$(date +%s)
+    SALMON_ELAPSED=$(( (SALMON_END - SALMON_START) / 60 ))
+    echo "Done with $line! Salmon took ${SALMON_ELAPSED} minutes."
 done
 
 echo ""
