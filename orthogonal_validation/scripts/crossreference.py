@@ -127,7 +127,7 @@ if len(overlap) > 0:
         event_type = event_id.split(";")[1].split(":")[0]
         rows.append({
             "gene_id":       gene_id,
-            "gene_name":     gene_map.get(gene_id, "N/A"),
+            "gene_name":     gene_map.get(gene_id, "unannotated"),
             "event_type":    event_type,
             "event_id":      event_id,
             "dPSI_illumina": round(-illumina_rows[event_id]["dPSI"], 4),  # negate: KO-WT
@@ -206,7 +206,7 @@ def make_splice_rows(gene_set, label):
         for ev in illumina_sig_gene_events.get(gene_id, []):
             row = {
                 "gene_id":    gene_id,
-                "gene_name":  gene_map.get(gene_id, "N/A"),
+                "gene_name":  gene_map.get(gene_id, "unannotated"),
                 "event_type": ev["event_type"],
                 "event_id":   ev["event_id"],
                 "dPSI_illumina": ev["dPSI"],
@@ -225,15 +225,20 @@ def make_de_only_rows(gene_set):
     for gene_id in sorted(gene_set):
         rows.append({
             "gene_id":        gene_id,
-            "gene_name":      gene_map.get(gene_id, "N/A"),
+            "gene_name":      gene_map.get(gene_id, "unannotated"),
             "log2FoldChange": round(de_full.loc[gene_id, "log2FoldChange"], 4),
             "padj":           round(de_full.loc[gene_id, "padj"], 6),
         })
     return rows
 
 
-# Excel: DE only (325)
-pd.DataFrame(make_de_only_rows(de_only)).to_excel(
+# Excel: DE only — sort named genes first, unannotated to bottom
+de_only_df = pd.DataFrame(make_de_only_rows(de_only))
+de_only_df = pd.concat([
+    de_only_df[de_only_df["gene_name"] != "unannotated"].sort_values("gene_name"),
+    de_only_df[de_only_df["gene_name"] == "unannotated"].sort_values("gene_id")
+]).reset_index(drop=True)
+de_only_df.to_excel(
     os.path.join(TABLES_DIR, "step14_DE_only.xlsx"), index=False)
 print(f"Saved: step14_DE_only.xlsx  (n={len(de_only)})")
 
