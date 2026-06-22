@@ -284,32 +284,37 @@ suppressWarnings({
                                      order                 = FALSE,
                                      onlySignificantGenes  = FALSE)
 })
+cat("padj_stageR class:", class(padj_stageR), "\n")
+cat("padj_stageR dim:", dim(padj_stageR), "\n")
+cat("padj_stageR colnames:", colnames(padj_stageR), "\n")
+cat("padj_stageR head:\n")
+print(head(padj_stageR))
+cat("Values < 0.05 in gene col:", sum(padj_stageR[,"gene"] < 0.05, na.rm=TRUE), "\n")
+cat("Values < 0.05 in tx col:  ", sum(padj_stageR[,"transcript"] < 0.05, na.rm=TRUE), "\n")
 
 # --- Build output table -------------------------------------------------------
 
-# gene_name map
-gene_name_map <- setNames(
-  sapply(gtf_tx$attributes, extract_attr, key = "gene_name"),
-  sapply(gtf_tx$attributes, extract_attr, key = "transcript_id")
-)
+# gene_name map (gene_id -> gene_name)
 gene_name_map_by_gene <- setNames(
   sapply(gtf_tx$attributes, extract_attr, key = "gene_name"),
   sapply(gtf_tx$attributes, extract_attr, key = "gene_id")
 )
 
-res_df <- as.data.frame(res_tx)
-res_df$transcript_id     <- rownames(res_df)
-res_df$gene_id           <- res_df$groupID
-res_df$gene_name         <- gene_name_map_by_gene[res_df$gene_id]
+# Base table from DESeq2 results
+res_df               <- as.data.frame(res_tx)
+res_df$transcript_id <- rownames(res_df)
+res_df$gene_id       <- res_df$groupID
+res_df$gene_name     <- gene_name_map_by_gene[res_df$gene_id]
 res_df$gene_name[is.na(res_df$gene_name)] <- "unannotated"
 
-# Merge stageR adjusted p-values
-padj_df <- as.data.frame(padj_stageR)
-padj_df$transcript_id <- rownames(padj_df)
-colnames(padj_df)[colnames(padj_df) == "gene"]       <- "padj_gene_stageR"
-colnames(padj_df)[colnames(padj_df) == "transcript"] <- "padj_tx_stageR"
+# Merge stageR output — use txID column (NOT rownames)
+padj_df <- padj_stageR
+colnames(padj_df)[colnames(padj_df) == "txID"]        <- "transcript_id"
+colnames(padj_df)[colnames(padj_df) == "gene"]        <- "padj_gene_stageR"
+colnames(padj_df)[colnames(padj_df) == "transcript"]  <- "padj_tx_stageR"
 
-res_df <- merge(res_df, padj_df[, c("transcript_id", "padj_gene_stageR", "padj_tx_stageR")],
+res_df <- merge(res_df,
+                padj_df[, c("transcript_id", "padj_gene_stageR", "padj_tx_stageR")],
                 by = "transcript_id", all.x = TRUE)
 
 # Select and order final columns
@@ -325,8 +330,8 @@ write.table(out_df,
             row.names = FALSE)
 
 # Summary
-sig_genes <- sum(out_df$padj_gene_stageR < 0.05, na.rm = TRUE)
-sig_tx    <- sum(out_df$padj_tx_stageR   < 0.05, na.rm = TRUE)
+sig_genes <- length(unique(out_df$gene_id[!is.na(out_df$padj_gene_stageR) & out_df$padj_gene_stageR < 0.05]))
+sig_tx    <- sum(!is.na(out_df$padj_tx_stageR) & out_df$padj_tx_stageR < 0.05)
 cat("Significant genes (stageR stage 1, padj<0.05)      :", sig_genes, "\n")
 cat("Significant transcripts (stageR stage 2, padj<0.05):", sig_tx, "\n")
 cat("Saved: deseq2_KO_vs_WT.tsv\n")
