@@ -4,7 +4,9 @@
 # Author: Gricey
 # Description:
 #   Step 5: tximport → filter → normalize → (optional limma) → SUPPA input
-#   Step 6: DESeq2 differential expression (WT vs PerDKO)
+#   Step 6: DESeq2 at TRANSCRIPT level + stageR two-stage adjustment
+#           Stage 1 (screen):  gene-level q-values (perGeneQValueHack)
+#           Stage 2 (confirm): transcript-level p-values within significant genes
 #
 # Dataset: GSE130613 — WT and Per1/2 KO mouse liver, constant darkness, CT16-20
 #   WT  (n=4): SRR9002567, SRR9002568, SRR9002569, SRR9002570
@@ -18,7 +20,7 @@
 # =============================================================================
 # if (!requireNamespace("BiocManager", quietly = TRUE))
 #     install.packages("BiocManager")
-# BiocManager::install(c("tximport", "DESeq2", "limma"))
+# BiocManager::install(c("tximport", "DESeq2", "limma", "stageR"))
 
 # =============================================================================
 # LIBRARIES
@@ -26,6 +28,7 @@
 library(tximport)
 library(DESeq2)
 library(limma)
+library(stageR)
 
 # =============================================================================
 # PATHS — update SALMON_DATE to match your results folder
@@ -154,40 +157,178 @@ write.table(suppa_table,
 cat("Saved: combined_norm.tab\n")
 
 # =============================================================================
-# STEP 6 — DESeq2 differential expression (gene-level, parallel track)
-# Uses raw estimated counts from tximport aggregated to gene level
+# STEP 6 — Transcript-level DE with stageR two-stage adjustment
+#
+# Why transcript level?
+#   A gene can have multiple transcripts. We want to know not just IF a gene
+#   changes, but WHICH specific transcript changes. stageR does this in two stages:
+#     Stage 1 (screen):  gene-level — does anything change in this gene at all?
+#     Stage 2 (confirm): transcript-level — which specific transcript changed?
+#
+# Functions from Bharath's code (perGeneQValueHack + perGeneQValueExact):
+#   These compute gene-level q-values by summarising transcript p-values per gene
+#   (taking the minimum p-value per gene), then applying BH correction.
 # =============================================================================
-cat("\nRunning DESeq2 (gene-level)...\n")
 
-# tximport at gene level for DESeq2
-txi_gene <- tximport(quant_files,
-                     type    = "salmon",
-                     tx2gene = tx2gene,
-                     txOut   = FALSE)
+# --- Helper functions (from Bharath) -----------------------------------------
 
-# Build DESeq2 object
-dds <- DESeqDataSetFromTximport(txi_gene,
-                                colData = col_data,
-                                design  = ~ condition)
+perGeneQValueExact <- function(pGene, theta, geneSplit) {
+  stopifnot(length(pGene) == length(geneSplit))
+  numExons <- listLen(geneSplit)
+  tab      <- tabulate(numExons)
+  notZero  <- (tab > 0)
+  numerator <- mapply(function(m, n) m * (1 - (1 - theta)^n),
+                      m = tab[notZero], n = which(notZero))
+  numerator <- rowSums(numerator)
+  bins  <- cut(pGene, breaks = c(-Inf, as.vector(theta)), right = TRUE,
+               include.lowest = TRUE)
+  counts <- tabulate(bins, nbins = nlevels(bins))
+  denom  <- cumsum(counts)
+  return(numerator / denom)
+}
+
+perGeneQValueHack <- function(object, p = "pvalue",
+                               method = perGeneQValueExact) {
+  wTest    <- which(!is.na(object$padj))
+  pvals    <- object[[p]][wTest]
+  geneID   <- factor(object[["groupID"]][wTest])
+  geneSplit <- split(seq_along(geneID), geneID)
+  pGene    <- sapply(geneSplit, function(i) min(pvals[i]))
+  stopifnot(all(is.finite(pGene)))
+  theta <- unique(sort(pGene))
+  q     <- method(pGene, theta, geneSplit)
+  res        <- rep(NA_real_, length(pGene))
+  res        <- q[match(pGene, theta)]
+  res        <- pmin(1, res)
+  names(res) <- names(geneSplit)
+  stopifnot(!any(is.na(res)))
+  return(res)
+}
+
+# --- DESeq2 at transcript level -----------------------------------------------
+
+cat("\nRunning DESeq2 (transcript level)...\n")
+
+# Use the same txi_tx from Step 5a (transcript-level, txOut=TRUE)
+# Build DESeq2 object directly from transcript-level tximport
+dds_tx <- DESeqDataSetFromTximport(txi_tx,
+                                   colData = col_data,
+                                   design  = ~ condition)
+
+# Add gene_id to rowData so stageR can group transcripts by gene
+tx_to_gene              <- setNames(tx2gene$gene_id, tx2gene$tx_id)
+rowData(dds_tx)$groupID <- tx_to_gene[rownames(dds_tx)]
+
+# Remove transcripts not found in GTF (no gene_id mapping — NA groupID)
+# These exist in transcriptome_ext.fa but not in transcriptome_productivity.gtf
+no_mapping <- is.na(rowData(dds_tx)$groupID)
+cat("Transcripts with no GTF gene mapping (removed):", sum(no_mapping), "\n")
+dds_tx <- dds_tx[!no_mapping, ]
+
+# Filter: keep transcripts with total counts > 20 across all samples
+keep_tx <- rowSums(counts(dds_tx)) > 20
+dds_tx  <- dds_tx[keep_tx, ]
+cat("Transcripts after DESeq2 filter (rowSums > 20):", nrow(dds_tx), "\n")
 
 # Run DESeq2
-dds <- DESeq(dds)
+dds_tx <- DESeq(dds_tx)
 
-# Results: KO vs WT
-res <- results(dds, contrast = c("condition", "KO", "WT"))
-res_df <- as.data.frame(res)
-res_df <- res_df[order(res_df$padj, na.last = TRUE), ]
+# Extract results: KO vs WT
+res_tx <- results(dds_tx,
+                  contrast            = c("condition", "KO", "WT"),
+                  independentFiltering = TRUE,
+                  alpha               = 0.05)
 
-# Save results
-write.table(res_df,
+# Add groupID (gene_id) to results for stageR
+res_tx$groupID <- rowData(dds_tx)$groupID
+
+# --- Diagnostics before stageR -----------------------------------------------
+cat("\n--- DESeq2 raw results diagnostics ---\n")
+cat("Total transcripts tested          :", nrow(res_tx), "\n")
+cat("Transcripts with non-NA pvalue    :", sum(!is.na(res_tx$pvalue)), "\n")
+cat("Transcripts with non-NA padj      :", sum(!is.na(res_tx$padj)), "\n")
+cat("Transcripts with pvalue < 0.05    :", sum(res_tx$pvalue < 0.05, na.rm=TRUE), "\n")
+cat("Transcripts with padj < 0.05      :", sum(res_tx$padj < 0.05, na.rm=TRUE), "\n")
+cat("Transcripts with non-NA groupID   :", sum(!is.na(res_tx$groupID)), "\n")
+cat("--------------------------------------\n\n")
+
+# --- Stage 1: gene-level screening -------------------------------------------
+
+cat("Running stageR stage 1 (gene-level screening)...\n")
+pScreen <- perGeneQValueHack(res_tx)   # named vector: gene_id -> q-value
+cat("pScreen summary:\n")
+print(summary(pScreen))
+cat("Genes with pScreen < 0.05:", sum(pScreen < 0.05, na.rm=TRUE), "\n")
+
+# --- Stage 2: transcript-level confirmation -----------------------------------
+
+cat("Running stageR stage 2 (transcript-level confirmation)...\n")
+pConfirmation <- matrix(res_tx$pvalue, ncol = 1)
+dimnames(pConfirmation) <- list(rownames(res_tx), "transcript")
+
+# tx2gene subset: only transcripts in the analysis
+tx2gene_sub <- tx2gene[tx2gene$tx_id %in% rownames(res_tx), ]
+
+stageRObj <- stageRTx(pScreen      = pScreen,
+                       pConfirmation = pConfirmation,
+                       pScreenAdjusted = TRUE,
+                       tx2gene      = tx2gene_sub)
+
+stageRObj <- stageWiseAdjustment(stageRObj,
+                                  method  = "dte",
+                                  alpha   = 0.05,
+                                  allowNA = TRUE)
+
+suppressWarnings({
+  padj_stageR <- getAdjustedPValues(stageRObj,
+                                     order                 = FALSE,
+                                     onlySignificantGenes  = FALSE)
+})
+
+# --- Build output table -------------------------------------------------------
+
+# gene_name map
+gene_name_map <- setNames(
+  sapply(gtf_tx$attributes, extract_attr, key = "gene_name"),
+  sapply(gtf_tx$attributes, extract_attr, key = "transcript_id")
+)
+gene_name_map_by_gene <- setNames(
+  sapply(gtf_tx$attributes, extract_attr, key = "gene_name"),
+  sapply(gtf_tx$attributes, extract_attr, key = "gene_id")
+)
+
+res_df <- as.data.frame(res_tx)
+res_df$transcript_id     <- rownames(res_df)
+res_df$gene_id           <- res_df$groupID
+res_df$gene_name         <- gene_name_map_by_gene[res_df$gene_id]
+res_df$gene_name[is.na(res_df$gene_name)] <- "unannotated"
+
+# Merge stageR adjusted p-values
+padj_df <- as.data.frame(padj_stageR)
+padj_df$transcript_id <- rownames(padj_df)
+colnames(padj_df)[colnames(padj_df) == "gene"]       <- "padj_gene_stageR"
+colnames(padj_df)[colnames(padj_df) == "transcript"] <- "padj_tx_stageR"
+
+res_df <- merge(res_df, padj_df[, c("transcript_id", "padj_gene_stageR", "padj_tx_stageR")],
+                by = "transcript_id", all.x = TRUE)
+
+# Select and order final columns
+out_df <- res_df[, c("transcript_id", "gene_id", "gene_name",
+                      "log2FoldChange", "pvalue",
+                      "padj_gene_stageR", "padj_tx_stageR")]
+out_df <- out_df[order(out_df$padj_gene_stageR, out_df$padj_tx_stageR, na.last = TRUE), ]
+
+write.table(out_df,
             file      = file.path(OUTPUT_DIR, "deseq2_KO_vs_WT.tsv"),
             sep       = "\t",
             quote     = FALSE,
-            col.names = NA)
+            row.names = FALSE)
 
 # Summary
-sig <- sum(res_df$padj < 0.05 & abs(res_df$log2FoldChange) > 1.5, na.rm = TRUE)
-cat("DESeq2 significant genes (|log2FC|>1.5, padj<0.05):", sig, "\n")
+sig_genes <- sum(out_df$padj_gene_stageR < 0.05, na.rm = TRUE)
+sig_tx    <- sum(out_df$padj_tx_stageR   < 0.05, na.rm = TRUE)
+cat("Significant genes (stageR stage 1, padj<0.05)      :", sig_genes, "\n")
+cat("Significant transcripts (stageR stage 2, padj<0.05):", sig_tx, "\n")
 cat("Saved: deseq2_KO_vs_WT.tsv\n")
 
 cat("\n=== DONE ===\n")
