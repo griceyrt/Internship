@@ -24,7 +24,7 @@ from adjustText import adjust_text
 # =============================================================================
 BASE_DIR    = "/Users/gricey/Desktop/Internship/orthogonal_validation"
 GTF_PATH    = "/Users/gricey/Desktop/Internship/boundary_analysis/data/transcriptome_productivity.gtf"
-SUPPA_DATE  = "2026-06-17"
+SUPPA_DATE  = "2026-06-20"
 SUPPA_DIR   = os.path.join(BASE_DIR, "results", f"suppa_{SUPPA_DATE}", "diff")
 DESEQ_FILE  = os.path.join(BASE_DIR, "results", "normalisation", "deseq2_KO_vs_WT.tsv")
 OUT_DIR     = os.path.join(BASE_DIR, "results", "figures")
@@ -145,51 +145,72 @@ print(f"Total genes: {len(de)}")
 for cat, count in de["category"].value_counts().items():
     print(f"  {cat}: {count}")
 
-fig, ax = plt.subplots(figsize=(11, 8))
+fig, ax = plt.subplots(figsize=(13, 9))
+
+# Cap y-axis at 20 to match original plot proportions
+# Extreme outliers shown as triangles at the cap
+Y_CAP = 20
+de["neg_log10_padj_clipped"] = de["neg_log10_padj"].clip(upper=Y_CAP)
+de["clipped"] = de["neg_log10_padj"] > Y_CAP
+
 for cat, color in cat_colors.items():
-    sub = de[de["category"] == cat]
+    sub = de[(de["category"] == cat) & (~de["clipped"])]
     alpha = 0.4 if cat == "not significant" else 0.85
     size  = 10  if cat == "not significant" else 30
-    ax.scatter(sub["log2FoldChange"], sub["neg_log10_padj"],
+    ax.scatter(sub["log2FoldChange"], sub["neg_log10_padj_clipped"],
                color=color, alpha=alpha, s=size, linewidths=0,
-               label=f"{cat} (n={len(sub)})", zorder=2 if cat != "not significant" else 1)
+               label=f"{cat} (n={len(de[de['category']==cat])})",
+               zorder=2 if cat != "not significant" else 1)
+    sub_clip = de[(de["category"] == cat) & (de["clipped"])]
+    if len(sub_clip) > 0:
+        ax.scatter(sub_clip["log2FoldChange"], [Y_CAP - 0.3] * len(sub_clip),
+                   color=color, alpha=alpha, s=50, marker="^", linewidths=0, zorder=3)
 
 ax.axvline(x= LFC_THRESH,  color="black", linestyle="--", linewidth=0.8, alpha=0.6)
 ax.axvline(x=-LFC_THRESH,  color="black", linestyle="--", linewidth=0.8, alpha=0.6)
 ax.axhline(y=-np.log10(PADJ_THRESH), color="black", linestyle="--", linewidth=0.8, alpha=0.6)
+ax.text(0.01, 0.98, "▲ clipped (y > 20)", transform=ax.transAxes,
+        fontsize=7, color="grey", va="top")
 
-# Label selected genes — keep original dot color, add white-box label + connector
+# Label selected genes — only if significant
 texts = []
 for gene in CIRCADIAN_GENES:
     gid = name_to_id.get(gene)
     if gid and gid in de.index:
+        if de.loc[gid, "category"] == "not significant":
+            continue
         x = de.loc[gid, "log2FoldChange"]
-        y = de.loc[gid, "neg_log10_padj"]
+        y = de.loc[gid, "neg_log10_padj_clipped"]
         dot_color = cat_colors.get(de.loc[gid, "category"], "lightgrey")
         ax.scatter(x, y, color=dot_color, s=70, zorder=5,
                    edgecolors="black", linewidths=0.8)
+        # Gstm2 sits too low — place it manually higher and to the left
+        if gene == "Gstm2":
+            ax.annotate(gene, xy=(x, y), xytext=(x - 1.5, y + 1.8),
+                        fontsize=8.5, fontweight="bold", zorder=6,
+                        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.75),
+                        arrowprops=dict(arrowstyle="-", color="#333333", lw=0.8))
+            continue
         texts.append(ax.text(
             x, y, gene,
-            fontsize=9, fontweight="bold", zorder=6, clip_on=False,
+            fontsize=8.5, fontweight="bold", zorder=6, clip_on=False,
             bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.75)
         ))
 
 adjust_text(
     texts, ax=ax,
-    expand=(2.2, 2.2),
-    force_text=(1.0, 1.5),
-    force_points=(0.4, 0.6),
+    expand=(2.5, 3.0),
+    force_text=(1.5, 2.5),
+    force_points=(0.5, 1.0),
     arrowprops=dict(arrowstyle="-", color="#333333", lw=0.8)
 )
 
 ax.set_xlabel("log₂ fold change (PerDKO / WT)", fontsize=12)
 ax.set_ylabel("−log₁₀(adjusted p-value)", fontsize=12)
 ax.set_title("Differential Expression: PerDKO vs WT (CT16-20, Liver)\nGSE130613 — Illumina short-read", fontsize=11)
+ax.set_xlim(-13, 12)
+ax.set_ylim(0, Y_CAP + 0.5)
 ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=9)
-x_min, x_max = ax.get_xlim()
-y_min, y_max = ax.get_ylim()
-ax.set_xlim(x_min - 0.8, x_max + 0.8)
-ax.set_ylim(y_min, y_max + 1.5)
 plt.tight_layout()
 
 out_path = os.path.join(OUT_DIR, "step13_DE_volcano.png")

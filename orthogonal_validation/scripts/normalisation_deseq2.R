@@ -31,7 +31,7 @@ library(limma)
 # PATHS — update SALMON_DATE to match your results folder
 # =============================================================================
 BASE_DIR    <- "/Users/gricey/Desktop/Internship/orthogonal_validation"
-SALMON_DATE <- "2026-06-16"   # <-- UPDATE if different
+SALMON_DATE <- "2026-06-20"   # <-- UPDATE if different
 SALMON_DIR  <- file.path(BASE_DIR, "results", paste0("SRP194523_salmon_", SALMON_DATE))
 GTF_PATH    <- "/Users/gricey/Desktop/Internship/boundary_analysis/data/transcriptome_productivity.gtf"
 OUTPUT_DIR  <- file.path(BASE_DIR, "results", "normalisation")

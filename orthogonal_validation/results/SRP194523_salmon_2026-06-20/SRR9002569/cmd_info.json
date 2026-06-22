@@ -1,0 +1,13 @@
+{
+  "salmon_version": "2.0.0",
+  "index": "data/transcriptome_ext_index",
+  "libType": "A",
+  "output": "/Users/gricey/Desktop/Internship/orthogonal_validation/scripts/../results/SRP194523_salmon_2026-06-20/SRR9002569/",
+  "mates1": [],
+  "mates2": [],
+  "unmatedReads": [
+    "/Users/gricey/Desktop/Internship/orthogonal_validation/scripts/../temp/SRR9002569_trimmed_full.fastq.gz"
+  ],
+  "threads": 7,
+  "sketch": false
+}
