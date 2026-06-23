@@ -26,6 +26,7 @@ BASE_DIR    = "/Users/gricey/Desktop/Internship/orthogonal_validation"
 GTF_PATH    = "/Users/gricey/Desktop/Internship/boundary_analysis/data/transcriptome_productivity.gtf"
 SUPPA_DATE  = "2026-06-20"
 SUPPA_DIR   = os.path.join(BASE_DIR, "results", f"suppa_{SUPPA_DATE}", "diff")
+SUPPA_PSI   = os.path.join(BASE_DIR, "results", f"suppa_{SUPPA_DATE}")
 DESEQ_FILE  = os.path.join(BASE_DIR, "results", "normalisation", "deseq2_KO_vs_WT.tsv")
 OUT_DIR     = os.path.join(BASE_DIR, "results", "figures")
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -87,7 +88,7 @@ ax.axhline(y=-np.log10(PVAL_SPLICE), color="black", linestyle="--", linewidth=0.
 
 ax.set_xlabel("dPSI (PerDKO − WT)", fontsize=12)
 ax.set_ylabel("−log₁₀(p-value)", fontsize=12)
-ax.set_title("Differential Splicing: PerDKO vs WT (CT16-20, Liver)\nGSE130613 — Illumina short-read", fontsize=11)
+ax.set_title("Differentially spliced events — Illumina only (PerDKO vs WT, CT16-20, Liver)\nGSE130613 — Illumina short-read", fontsize=11)
 ax.legend(title="Event type", bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=9)
 plt.tight_layout()
 
@@ -125,15 +126,23 @@ CIRCADIAN_GENES = [
     "Prkca", "Cyp7a1", "Fancm", "Cspg5"
 ]
 
-de = pd.read_csv(DESEQ_FILE, sep="\t", index_col=0)
-de = de.dropna(subset=["log2FoldChange", "padj"])
-de = de[de["padj"] > 0]
-de["neg_log10_padj"] = -np.log10(de["padj"])
-de["gene_name"] = de.index.map(gene_map)
+# New stageR output: transcript-level — collapse to gene level for volcano
+# Use padj_gene_stageR (stage 1 gene screening) for significance
+# Take the transcript with largest |log2FC| per gene as representative
+de_tx = pd.read_csv(DESEQ_FILE, sep="\t")
+de_tx = de_tx.dropna(subset=["log2FoldChange", "padj_gene_stageR"])
+de_tx = de_tx[de_tx["padj_gene_stageR"] > 0]
+
+# Collapse: one row per gene (representative = max |log2FC| transcript)
+de = (de_tx.sort_values("log2FoldChange", key=abs, ascending=False)
+           .drop_duplicates(subset="gene_id")
+           .set_index("gene_id"))
+
+de["neg_log10_padj"] = -np.log10(de["padj_gene_stageR"])
 
 de["category"] = "not significant"
-de.loc[(de["log2FoldChange"] >  LFC_THRESH) & (de["padj"] < PADJ_THRESH), "category"] = "up in PerDKO"
-de.loc[(de["log2FoldChange"] < -LFC_THRESH) & (de["padj"] < PADJ_THRESH), "category"] = "down in PerDKO"
+de.loc[(de["log2FoldChange"] >  LFC_THRESH) & (de["padj_gene_stageR"] < PADJ_THRESH), "category"] = "up in PerDKO"
+de.loc[(de["log2FoldChange"] < -LFC_THRESH) & (de["padj_gene_stageR"] < PADJ_THRESH), "category"] = "down in PerDKO"
 
 cat_colors = {
     "not significant": "lightgrey",
@@ -145,11 +154,10 @@ print(f"Total genes: {len(de)}")
 for cat, count in de["category"].value_counts().items():
     print(f"  {cat}: {count}")
 
-fig, ax = plt.subplots(figsize=(13, 9))
+fig, ax = plt.subplots(figsize=(13, 8))
 
-# Cap y-axis at 20 to match original plot proportions
-# Extreme outliers shown as triangles at the cap
-Y_CAP = 20
+# Cap y-axis just above the highest significant point (~12.5)
+Y_CAP = 13.5
 de["neg_log10_padj_clipped"] = de["neg_log10_padj"].clip(upper=Y_CAP)
 de["clipped"] = de["neg_log10_padj"] > Y_CAP
 
@@ -169,13 +177,19 @@ for cat, color in cat_colors.items():
 ax.axvline(x= LFC_THRESH,  color="black", linestyle="--", linewidth=0.8, alpha=0.6)
 ax.axvline(x=-LFC_THRESH,  color="black", linestyle="--", linewidth=0.8, alpha=0.6)
 ax.axhline(y=-np.log10(PADJ_THRESH), color="black", linestyle="--", linewidth=0.8, alpha=0.6)
-ax.text(0.01, 0.98, "▲ clipped (y > 20)", transform=ax.transAxes,
+ax.text(0.01, 0.98, f"▲ clipped (y > {Y_CAP})", transform=ax.transAxes,
         fontsize=7, color="grey", va="top")
 
 # Label selected genes — only if significant
-texts = []
+# gene_name is now a column in de; build reverse map from gene_name -> gene_id
+name_to_id_stageR = {row["gene_name"]: gid for gid, row in de.iterrows()
+                     if pd.notna(row.get("gene_name", None))}
+# Separate genes into blue (down) and orange (up) for different placement strategies
+blue_genes = []   # (gene, x, y) — will be stacked in a left-side column
+orange_texts = []
+
 for gene in CIRCADIAN_GENES:
-    gid = name_to_id.get(gene)
+    gid = name_to_id_stageR.get(gene) or name_to_id.get(gene)
     if gid and gid in de.index:
         if de.loc[gid, "category"] == "not significant":
             continue
@@ -184,32 +198,85 @@ for gene in CIRCADIAN_GENES:
         dot_color = cat_colors.get(de.loc[gid, "category"], "lightgrey")
         ax.scatter(x, y, color=dot_color, s=70, zorder=5,
                    edgecolors="black", linewidths=0.8)
-        # Gstm2 sits too low — place it manually higher and to the left
-        if gene == "Gstm2":
-            ax.annotate(gene, xy=(x, y), xytext=(x - 1.5, y + 1.8),
-                        fontsize=8.5, fontweight="bold", zorder=6,
-                        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.75),
-                        arrowprops=dict(arrowstyle="-", color="#333333", lw=0.8))
+        if y < 1.35:
             continue
-        texts.append(ax.text(
-            x, y, gene,
-            fontsize=8.5, fontweight="bold", zorder=6, clip_on=False,
-            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.75)
-        ))
+        if de.loc[gid, "category"] == "down in PerDKO":
+            blue_genes.append((gene, x, y))
+        else:
+            orange_texts.append(ax.text(
+                x + 1.5, y, gene,
+                fontsize=8.5, fontweight="bold", zorder=6, clip_on=False,
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8)
+            ))
 
+# Orange: use adjust_text to find good positions, then redraw as ax.annotate
+# so lines reliably touch both the dot and the label box.
 adjust_text(
-    texts, ax=ax,
-    expand=(2.5, 3.0),
-    force_text=(1.5, 2.5),
-    force_points=(0.5, 1.0),
-    arrowprops=dict(arrowstyle="-", color="#333333", lw=0.8)
+    orange_texts, ax=ax,
+    expand=(2.0, 2.0),
+    force_text=(1.2, 1.2),
+    force_points=(1.0, 1.0),
+    lim=500,
 )
 
+# Collect final positions, remove the text objects, redraw as annotate
+orange_gene_list = []
+for gene in CIRCADIAN_GENES:
+    gid = name_to_id_stageR.get(gene) or name_to_id.get(gene)
+    if gid and gid in de.index and de.loc[gid, "category"] == "up in PerDKO":
+        x = de.loc[gid, "log2FoldChange"]
+        y = de.loc[gid, "neg_log10_padj_clipped"]
+        if y >= 1.35:
+            orange_gene_list.append((gene, x, y))
+
+for txt, (gene, dot_x, dot_y) in zip(orange_texts, orange_gene_list):
+    lx, ly = txt.get_position()
+    txt.remove()
+    ax.annotate(
+        gene,
+        xy=(dot_x, dot_y),
+        xytext=(lx, ly),
+        fontsize=8.5, fontweight="bold", zorder=6,
+        ha=txt.get_ha(), va="center",
+        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8),
+        arrowprops=dict(arrowstyle="-", color="#555555", lw=0.7,
+                        shrinkA=0, shrinkB=0),
+    )
+
+# Blue: place each label just to the left of its own dot (dot_x - 2.0),
+# then nudge vertically so no two labels overlap. Lines touch both ends.
+blue_genes_sorted = sorted(blue_genes, key=lambda t: t[2], reverse=True)
+
+# Build label positions: start at dot_x - 2.0, same y as dot,
+# then push apart any that are too close vertically.
+MIN_YGAP = 0.7   # minimum vertical gap between labels (in data units)
+label_positions = []
+for gene, dot_x, dot_y in blue_genes_sorted:
+    lx = dot_x - 2.0
+    ly = dot_y
+    # Push down if overlapping with a label already placed above
+    for _, prev_lx, prev_ly in label_positions:
+        if abs(ly - prev_ly) < MIN_YGAP:
+            ly = prev_ly - MIN_YGAP
+    label_positions.append((gene, lx, ly))
+
+for (gene, dot_x, dot_y), (_, lx, ly) in zip(blue_genes_sorted, label_positions):
+    ax.annotate(
+        gene,
+        xy=(dot_x, dot_y),
+        xytext=(lx, ly),
+        fontsize=8.5, fontweight="bold", zorder=6,
+        ha="right", va="center",
+        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8),
+        arrowprops=dict(arrowstyle="-", color="#555555", lw=0.7,
+                        shrinkA=0, shrinkB=0),
+    )
+
 ax.set_xlabel("log₂ fold change (PerDKO / WT)", fontsize=12)
-ax.set_ylabel("−log₁₀(adjusted p-value)", fontsize=12)
-ax.set_title("Differential Expression: PerDKO vs WT (CT16-20, Liver)\nGSE130613 — Illumina short-read", fontsize=11)
+ax.set_ylabel("−log₁₀(padj gene, stageR)", fontsize=12)
+ax.set_title("Differentially expressed genes — Illumina only (PerDKO vs WT, CT16-20, Liver)\nGSE130613 — DESeq2 + stageR, transcript-level", fontsize=11)
 ax.set_xlim(-13, 12)
-ax.set_ylim(0, Y_CAP + 0.5)
+ax.set_ylim(0, Y_CAP + 0.3)
 ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=9)
 plt.tight_layout()
 
