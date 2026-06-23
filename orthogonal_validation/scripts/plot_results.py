@@ -20,6 +20,38 @@ import matplotlib.pyplot as plt
 from adjustText import adjust_text
 
 # =============================================================================
+# STYLE — DESeq2-inspired clean aesthetic
+# White background, open axes (no top/right spines), subtle grid behind data.
+# =============================================================================
+matplotlib.rcParams.update({
+    "font.family":          "sans-serif",
+    "font.sans-serif":      ["Arial", "DejaVu Sans", "Helvetica", "Verdana"],
+    "font.size":            11,
+    "axes.spines.top":      False,
+    "axes.spines.right":    False,
+    "axes.spines.left":     True,
+    "axes.spines.bottom":   True,
+    "axes.edgecolor":       "#AAAAAA",
+    "axes.linewidth":       0.8,
+    "axes.grid":            True,
+    "grid.color":           "#E5E5E5",
+    "grid.linewidth":       0.6,
+    "grid.linestyle":       "--",
+    "axes.axisbelow":       True,
+    "figure.facecolor":     "white",
+    "axes.facecolor":       "white",
+    "xtick.color":          "#444444",
+    "ytick.color":          "#444444",
+    "xtick.labelsize":      10,
+    "ytick.labelsize":      10,
+    "axes.labelcolor":      "#222222",
+    "axes.titlepad":        10,
+    "legend.frameon":       True,
+    "legend.framealpha":    0.9,
+    "legend.edgecolor":     "#DDDDDD",
+})
+
+# =============================================================================
 # PATHS
 # =============================================================================
 BASE_DIR    = "/Users/gricey/Desktop/Internship/orthogonal_validation"
@@ -155,6 +187,7 @@ for cat, count in de["category"].value_counts().items():
     print(f"  {cat}: {count}")
 
 fig, ax = plt.subplots(figsize=(13, 8))
+ax.grid(False)   # no gridlines — consistent with figures 12 and 15
 
 # Cap y-axis just above the highest significant point (~12.5)
 Y_CAP = 13.5
@@ -163,10 +196,12 @@ de["clipped"] = de["neg_log10_padj"] > Y_CAP
 
 for cat, color in cat_colors.items():
     sub = de[(de["category"] == cat) & (~de["clipped"])]
-    alpha = 0.4 if cat == "not significant" else 0.85
-    size  = 10  if cat == "not significant" else 30
+    # not significant: tiny, very light — same as figs 12/15
+    alpha = 0.85  if cat != "not significant" else 0.3
+    size  = 30    if cat != "not significant" else 6
+    c     = color if cat != "not significant" else "#CCCCCC"
     ax.scatter(sub["log2FoldChange"], sub["neg_log10_padj_clipped"],
-               color=color, alpha=alpha, s=size, linewidths=0,
+               color=c, alpha=alpha, s=size, linewidths=0,
                label=f"{cat} (n={len(de[de['category']==cat])})",
                zorder=2 if cat != "not significant" else 1)
     sub_clip = de[(de["category"] == cat) & (de["clipped"])]
@@ -174,11 +209,11 @@ for cat, color in cat_colors.items():
         ax.scatter(sub_clip["log2FoldChange"], [Y_CAP - 0.3] * len(sub_clip),
                    color=color, alpha=alpha, s=50, marker="^", linewidths=0, zorder=3)
 
-ax.axvline(x= LFC_THRESH,  color="black", linestyle="--", linewidth=0.8, alpha=0.6)
-ax.axvline(x=-LFC_THRESH,  color="black", linestyle="--", linewidth=0.8, alpha=0.6)
-ax.axhline(y=-np.log10(PADJ_THRESH), color="black", linestyle="--", linewidth=0.8, alpha=0.6)
+ax.axvline(x= LFC_THRESH,  color="#BBBBBB", linestyle="--", linewidth=0.8)
+ax.axvline(x=-LFC_THRESH,  color="#BBBBBB", linestyle="--", linewidth=0.8)
+ax.axhline(y=-np.log10(PADJ_THRESH), color="#BBBBBB", linestyle="--", linewidth=0.8)
 ax.text(0.01, 0.98, f"▲ clipped (y > {Y_CAP})", transform=ax.transAxes,
-        fontsize=7, color="grey", va="top")
+        fontsize=7, color="#AAAAAA", va="top")
 
 # Label selected genes — only if significant
 # gene_name is now a column in de; build reverse map from gene_name -> gene_id
@@ -205,8 +240,7 @@ for gene in CIRCADIAN_GENES:
         else:
             orange_texts.append(ax.text(
                 x + 1.5, y, gene,
-                fontsize=8.5, fontweight="bold", zorder=6, clip_on=False,
-                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8)
+                fontsize=8.5, fontstyle="italic", zorder=6, clip_on=False,
             ))
 
 # Orange: use adjust_text to find good positions, then redraw as ax.annotate
@@ -236,25 +270,20 @@ for txt, (gene, dot_x, dot_y) in zip(orange_texts, orange_gene_list):
         gene,
         xy=(dot_x, dot_y),
         xytext=(lx, ly),
-        fontsize=8.5, fontweight="bold", zorder=6,
+        fontsize=8.5, fontstyle="italic", zorder=6,
         ha=txt.get_ha(), va="center",
-        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8),
-        arrowprops=dict(arrowstyle="-", color="#555555", lw=0.7,
-                        shrinkA=0, shrinkB=0),
+        arrowprops=dict(arrowstyle="-", color="#888888", lw=0.7,
+                        shrinkA=4, shrinkB=4),
     )
 
-# Blue: place each label just to the left of its own dot (dot_x - 2.0),
-# then nudge vertically so no two labels overlap. Lines touch both ends.
+# Blue: place each label just to the left of its own dot
 blue_genes_sorted = sorted(blue_genes, key=lambda t: t[2], reverse=True)
 
-# Build label positions: start at dot_x - 2.0, same y as dot,
-# then push apart any that are too close vertically.
-MIN_YGAP = 0.7   # minimum vertical gap between labels (in data units)
+MIN_YGAP = 0.7
 label_positions = []
 for gene, dot_x, dot_y in blue_genes_sorted:
     lx = dot_x - 2.0
     ly = dot_y
-    # Push down if overlapping with a label already placed above
     for _, prev_lx, prev_ly in label_positions:
         if abs(ly - prev_ly) < MIN_YGAP:
             ly = prev_ly - MIN_YGAP
@@ -265,11 +294,10 @@ for (gene, dot_x, dot_y), (_, lx, ly) in zip(blue_genes_sorted, label_positions)
         gene,
         xy=(dot_x, dot_y),
         xytext=(lx, ly),
-        fontsize=8.5, fontweight="bold", zorder=6,
+        fontsize=8.5, fontstyle="italic", zorder=6,
         ha="right", va="center",
-        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8),
-        arrowprops=dict(arrowstyle="-", color="#555555", lw=0.7,
-                        shrinkA=0, shrinkB=0),
+        arrowprops=dict(arrowstyle="-", color="#888888", lw=0.7,
+                        shrinkA=4, shrinkB=4),
     )
 
 ax.set_xlabel("log₂ fold change (PerDKO / WT)", fontsize=12)
@@ -281,6 +309,91 @@ ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=9)
 plt.tight_layout()
 
 out_path = os.path.join(OUT_DIR, "step13_DE_volcano.png")
+plt.savefig(out_path, dpi=150, bbox_inches="tight")
+plt.close()
+print(f"Saved: {out_path}")
+
+# =============================================================================
+# MAPPING RATES — Dumbbell plot (before vs after trimming)
+# Shows per-sample Salmon mapping rates before and after cutadapt trimming.
+# Open circle = untrimmed, filled circle = trimmed.
+# Colors match figure 13: WT = blue, PerDKO = orange.
+# =============================================================================
+print("\n=== Mapping rates dumbbell plot ===")
+
+MAPPING = [
+    # (label,      condition,  untrimmed, trimmed)
+    ("WT a",      "WT",       56.71,     82.32),
+    ("WT b",      "WT",       57.22,     82.28),
+    ("WT c",      "WT",       70.17,     87.86),
+    ("WT d",      "WT",       56.89,     82.22),
+    ("PerDKO a",  "PerDKO",   47.26,     76.36),
+    ("PerDKO b",  "PerDKO",   46.62,     75.35),
+    ("PerDKO c",  "PerDKO",   43.82,     73.00),
+    ("PerDKO d",  "PerDKO",   47.54,     76.43),
+]
+
+COLORS = {"WT": "#0072B2", "PerDKO": "#D55E00"}
+
+fig, ax = plt.subplots(figsize=(8, 5))
+
+n = len(MAPPING)
+# Plot bottom to top: PerDKO first (lower), WT above, with a gap between groups
+y_positions = list(range(n))   # 0..7, reversed below
+
+for i, (label, cond, before, after) in enumerate(reversed(MAPPING)):
+    y   = i
+    col = COLORS[cond]
+    # Add subtle gap between WT and PerDKO groups
+    if i >= 4:
+        y += 0.5
+
+    # Connecting line
+    ax.plot([before, after], [y, y], color=col, linewidth=1.8,
+            alpha=0.7, zorder=1)
+    # Untrimmed — open circle
+    ax.scatter(before, y, color="white", edgecolors=col,
+               s=80, linewidths=1.8, zorder=3)
+    # Trimmed — filled circle
+    ax.scatter(after, y, color=col, s=80, linewidths=0, zorder=3)
+
+    # Improvement label
+    delta = after - before
+    ax.text(after + 0.8, y, f"+{delta:.1f}%",
+            va="center", ha="left", fontsize=8.5, color=col)
+
+    # Sample label on y-axis
+    ax.text(-1.5, y, label, va="center", ha="right", fontsize=9,
+            color="#333333")
+
+ax.set_xlabel("Salmon mapping rate (%)", fontsize=11)
+ax.set_title("Mapping rates before and after trimming\nGSE130613 — Salmon quasi-mapping", fontsize=11)
+ax.set_xlim(30, 100)
+ax.set_ylim(-0.6, n + 0.6)
+ax.set_yticks([])   # labels drawn manually above
+
+# Reference line at 60% and 80%
+for ref in [60, 70, 80]:
+    ax.axvline(ref, color="#CCCCCC", linewidth=0.8, linestyle=":", zorder=0)
+
+# Legend
+from matplotlib.lines import Line2D
+legend_elements = [
+    Line2D([0],[0], marker="o", color="w", markerfacecolor="white",
+           markeredgecolor="#555555", markeredgewidth=1.5,
+           markersize=8, label="Untrimmed"),
+    Line2D([0],[0], marker="o", color="w", markerfacecolor="#555555",
+           markersize=8, label="Trimmed"),
+    Line2D([0],[0], marker="o", color="w", markerfacecolor=COLORS["WT"],
+           markersize=8, label="WT"),
+    Line2D([0],[0], marker="o", color="w", markerfacecolor=COLORS["PerDKO"],
+           markersize=8, label="PerDKO"),
+]
+ax.legend(handles=legend_elements, fontsize=9,
+          bbox_to_anchor=(1.02, 1), loc="upper left")
+
+plt.tight_layout()
+out_path = os.path.join(OUT_DIR, "mapping_rates.png")
 plt.savefig(out_path, dpi=150, bbox_inches="tight")
 plt.close()
 print(f"Saved: {out_path}")
