@@ -429,48 +429,45 @@ autofit_excel(p)
 print(f"Saved: step14_spliced_only.xlsx  (n={len(splice_only)})")
 
 # =============================================================================
-# STEP 15 — DE overlap: Illumina vs Nanopore
-# Source: Khushi's Nanopore transcript-level DE results
-#         data/Table3-differential_expressiong_WTvsPerKO.xlsx, sheet "perKO_sig"
-# Method: match on ENSEMBL gene_id, both padj < 0.05
-# Output: one row per gene with log2FC and padj from both platforms,
-#         plus a flag for whether the direction of change is consistent.
+# STEP 14b — DE concordance scatter: Illumina vs Nanopore at GENE level
+# Matches on gene_id. One dot per gene (transcript with highest |log2FC| represents
+# the gene). Symmetric thresholds on both sides: padj<0.05 AND |log2FC|>1.5.
+# Nanopore significant genes come from perKO_sig (Khushi pre-filtered at same threshold).
+# Output: step14_DE_concordance_gene_level.png
+# Note: Bharath's preference — gene level is more intuitive for the figure;
+#       transcript-level detail is in step15 and the overlap table.
 # =============================================================================
-print("\n=== Step 15: DE overlap — Illumina vs Nanopore ===")
+print("\n=== Step 14b: DE concordance scatter — Illumina vs Nanopore (gene level) ===")
 
-KHUSHI_FILE = os.path.join(BASE_DIR, "data",
-                           "Table3-differential_expressiong_WTvsPerKO.xlsx")
+KHUSHI_FILE_14 = os.path.join(BASE_DIR, "data",
+                               "Table3-differential_expressiong_WTvsPerKO.xlsx")
 
-if not os.path.exists(KHUSHI_FILE):
-    print(f"  Skipping — Khushi's file not found at: {KHUSHI_FILE}")
+if not os.path.exists(KHUSHI_FILE_14):
+    print(f"  Skipping — Khushi's file not found at: {KHUSHI_FILE_14}")
 else:
-    wb    = openpyxl.load_workbook(KHUSHI_FILE)
+    wb14 = openpyxl.load_workbook(KHUSHI_FILE_14)
 
-    # --- Load perKO_sig (significant only) for the overlap table ---
-    ws    = wb["perKO_sig"]
-    rows  = list(ws.iter_rows(values_only=True))
-    header = [str(c) if c is not None else "idx" for c in rows[0]]
-    khushi_data = [dict(zip(header, r)) for r in rows[1:]]
+    # perKO_sig: significant genes (padj<0.05, |log2FC|>1.5, pre-filtered by Khushi)
+    ws_sig14 = wb14["perKO_sig"]
+    rows_sig14 = list(ws_sig14.iter_rows(values_only=True))
+    header_sig14 = [str(c) if c is not None else "idx" for c in rows_sig14[0]]
+    nano_sig_geneid = {}   # gene_id -> log2FC (first occurrence = best representative)
+    for r in rows_sig14[1:]:
+        row = dict(zip(header_sig14, r))
+        gid = row.get("gene_id")
+        if gid and gid not in nano_sig_geneid:
+            try:
+                nano_sig_geneid[gid] = float(row["log2FC_perko"])
+            except (TypeError, ValueError):
+                pass
 
-    # One entry per gene_id: keep first occurrence (lowest padj since sheet is ordered)
-    khushi_lookup = {}
-    for r in khushi_data:
-        gid = r.get("gene_id")
-        if gid and gid not in khushi_lookup:
-            khushi_lookup[gid] = {
-                "log2FC_nanopore":     round(float(r["log2FC_perko"]), 4),
-                "padj_nanopore":       round(float(r["padj_per_ko"]),  6),
-                "direction_nanopore":  r["diffexp"],
-            }
-
-    # --- Load DE_all (all genes) for the concordance scatter background ---
-    ws_all    = wb["DE_all"]
-    rows_all  = list(ws_all.iter_rows(values_only=True))
-    header_all = list(rows_all[0])
-    # One representative transcript per gene: max |log2FC|
-    khushi_all_lookup = {}   # gene_id -> {log2FC, padj}
-    for r in rows_all[1:]:
-        row = dict(zip(header_all, r))
+    # DE_all: all genes tested (background for scatter)
+    ws_all14 = wb14["DE_all"]
+    rows_all14 = list(ws_all14.iter_rows(values_only=True))
+    header_all14 = list(rows_all14[0])
+    nano_all_geneid = {}   # gene_id -> log2FC (representative: highest |log2FC|)
+    for r in rows_all14[1:]:
+        row = dict(zip(header_all14, r))
         gid = row.get("gene_id")
         if not gid:
             continue
@@ -479,69 +476,239 @@ else:
             padj = float(row["padj_per_ko"])
         except (TypeError, ValueError):
             continue
-        if gid not in khushi_all_lookup or abs(lfc) > abs(khushi_all_lookup[gid]["log2FC"]):
-            khushi_all_lookup[gid] = {"log2FC": lfc, "padj": padj}
+        if gid not in nano_all_geneid or abs(lfc) > abs(nano_all_geneid[gid]["log2FC"]):
+            nano_all_geneid[gid] = {"log2FC": lfc, "padj": padj}
 
-    # Our significant genes (Illumina, stageR padj < 0.05)
-    # de_full already loaded above (gene_id index, log2FoldChange, padj_gene_stageR)
-    our_sig_genes = de_full[de_full["padj_gene_stageR"] < PADJ_GENE]
+    # Our Illumina: one row per gene_id (transcript with highest |log2FC|)
+    de14 = pd.read_csv(DESEQ_FILE, sep="\t").dropna(subset=["log2FoldChange", "padj_gene_stageR"])
+    de14["abs_lfc"] = de14["log2FoldChange"].abs()
+    de14_gene = de14.sort_values("abs_lfc", ascending=False).drop_duplicates("gene_id").set_index("gene_id")
 
-    # Overlap on ENSEMBL gene_id
-    overlap_ids = set(our_sig_genes.index) & set(khushi_lookup.keys())
-    print(f"  Illumina significant genes : {len(our_sig_genes)}")
-    print(f"  Nanopore significant genes : {len(khushi_lookup)}")
-    print(f"  Overlap (both padj<0.05)   : {len(overlap_ids)}")
+    # Symmetric significance: padj<0.05 AND |log2FC|>1.5 on Illumina side
+    ill_sig14 = set(de14_gene[
+        (de14_gene["padj_gene_stageR"] < PADJ_GENE) &
+        (de14_gene["abs_lfc"] > 1.5)
+    ].index)
 
+    common14   = set(de14_gene.index) & set(nano_all_geneid.keys())
+    nano_sig14 = set(nano_sig_geneid.keys())
+    overlap14  = ill_sig14 & nano_sig14 & common14
+
+    print(f"  Common genes                          : {len(common14)}")
+    print(f"  Illumina sig (padj<0.05, |log2FC|>1.5): {len(ill_sig14)}")
+    print(f"  Nanopore sig (perKO_sig)              : {len(nano_sig14)}")
+    print(f"  Overlap (both significant)            : {len(overlap14)}")
+
+    # Build plot arrays
+    genes14 = list(common14)
+    x14 = np.array([float(de14_gene.loc[g, "log2FoldChange"]) for g in genes14])
+    y14 = np.array([float(nano_all_geneid[g]["log2FC"]) for g in genes14])
+
+    mask14_both = np.array([g in overlap14 for g in genes14])
+    mask14_ill  = np.array([g in ill_sig14 and g not in overlap14 for g in genes14])
+    mask14_nano = np.array([g in nano_sig14 and g not in overlap14 for g in genes14])
+    mask14_grey = ~(mask14_both | mask14_ill | mask14_nano)
+
+    fig, ax = plt.subplots(figsize=(13, 7))
+    ax.grid(False)
+
+    ax.scatter(x14[mask14_grey], y14[mask14_grey], c="#CCCCCC", s=6, alpha=0.35,
+               linewidths=0, zorder=1, rasterized=True)
+    ax.scatter(x14[mask14_ill],  y14[mask14_ill],  c="#56B4E9", s=40, alpha=0.85,
+               linewidths=0, zorder=2)
+    ax.scatter(x14[mask14_nano], y14[mask14_nano], c="#009E73", s=40, alpha=0.85,
+               linewidths=0, zorder=3)
+    ax.scatter(x14[mask14_both], y14[mask14_both], c="#E69F00", s=55, alpha=0.95,
+               edgecolors="black", linewidths=0.7, zorder=4)
+
+    lim14 = max(abs(x14).max(), abs(y14).max()) * 1.05
+    ax.plot([-lim14, lim14], [-lim14, lim14], color="#888888", lw=0.9, ls="--", alpha=0.6)
+    ax.axhline(0, color="#BBBBBB", lw=0.6, alpha=0.5)
+    ax.axvline(0, color="#BBBBBB", lw=0.6, alpha=0.5)
+
+    # Labels: orange dots — adjust_text to avoid overlaps, then redraw as
+    # ax.annotate so lines reliably connect dot to label (same pattern as step 12)
+    texts14     = []
+    gene_order14 = []
+    for i, g in enumerate(genes14):
+        if not mask14_both[i]:
+            continue
+        gname = de14_gene.loc[g, "gene_name"] if "gene_name" in de14_gene.columns else gene_map.get(g, g)
+        offset_x = 1.2 if x14[i] >= 0 else -1.2
+        offset_y = 0.8 if y14[i] >= 0 else -0.8
+        texts14.append(ax.text(x14[i] + offset_x, y14[i] + offset_y, gname,
+                               fontsize=8, color="#1a1a1a", fontstyle="italic"))
+        gene_order14.append((gname, x14[i], y14[i]))
+
+    adjust_text(texts14, ax=ax,
+                expand=(3.5, 3.5), force_text=(2.5, 2.5),
+                force_points=(1.5, 1.5), lim=700)
+
+    for txt, (gname, dot_x, dot_y) in zip(texts14, gene_order14):
+        lx, ly = txt.get_position()
+        txt.remove()
+        ax.annotate(gname,
+                    xy=(dot_x, dot_y), xytext=(lx, ly),
+                    fontsize=8, color="#1a1a1a", fontstyle="italic",
+                    ha="center", va="center",
+                    arrowprops=dict(arrowstyle="-", color="#888888", lw=0.7,
+                                    shrinkA=4, shrinkB=4))
+
+    legend14 = [
+        Line2D([0],[0], marker="o", color="w", markerfacecolor="#E69F00",
+               markeredgecolor="black", markersize=8,
+               label=f"Both significant (n={mask14_both.sum()})"),
+        Line2D([0],[0], marker="o", color="w", markerfacecolor="#56B4E9",
+               markersize=7, label=f"Illumina only (n={mask14_ill.sum()})"),
+        Line2D([0],[0], marker="o", color="w", markerfacecolor="#009E73",
+               markersize=7, label=f"Nanopore only (n={mask14_nano.sum()})"),
+        Line2D([0],[0], marker="o", color="w", markerfacecolor="#CCCCCC",
+               markersize=6, label=f"Not significant (n={mask14_grey.sum()})"),
+    ]
+    ax.legend(handles=legend14, fontsize=8, bbox_to_anchor=(1.02, 1), loc="upper left")
+    ax.set_xlabel("log₂ fold change — Illumina (PerDKO / WT)", fontsize=12)
+    ax.set_ylabel("log₂ fold change — Nanopore (PerDKO / WT)", fontsize=12)
+    ax.set_title(
+        "DE concordance: Illumina vs Nanopore (PerDKO vs WT) — gene level\n"
+        f"All genes tested in both platforms (n={len(common14)}) | threshold: padj<0.05, |log₂FC|>1.5",
+        fontsize=11)
+    plt.tight_layout()
+    p14 = os.path.join(OUT_DIR, "step14_DE_concordance_gene_level.png")
+    plt.savefig(p14, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"  Saved: step14_DE_concordance_gene_level.png")
+
+
+# =============================================================================
+# STEP 15 — DE concordance: Illumina vs Nanopore at TRANSCRIPT level
+# Source: Khushi's Nanopore transcript-level DE results
+#         data/Table3-differential_expressiong_WTvsPerKO.xlsx
+#           - DE_all   : all transcripts tested (background for scatter)
+#           - perKO_sig: significant transcripts (padj<0.05 AND |log2FC|>1.5)
+# Our Illumina data: results/normalisation/deseq2_KO_vs_WT.tsv (transcript level)
+# Method: match on transcript_id — includes both annotated ENSMUST and novel UUID
+#         transcripts (both datasets used the same custom transcriptome_ext.fa).
+# Significance thresholds (matching Khushi's manuscript):
+#   Illumina : padj_gene_stageR < 0.05 AND |log2FoldChange| > 1.5
+#   Nanopore : padj_per_ko      < 0.05 AND |log2FC_perko|  > 1.5 (pre-filtered in sheet)
+# Outputs:
+#   - step15_DE_overlap_Illumina_vs_Nanopore.xlsx (overlap transcripts table)
+#   - step15_DE_concordance_scatter.png    (full range)
+#   - step15_DE_concordance_scatter_v2.png (clipped ±15)
+# =============================================================================
+print("\n=== Step 15: DE concordance — Illumina vs Nanopore (transcript level) ===")
+
+LFC_THRESH_15 = 1.5   # matching Khushi's manuscript threshold
+
+KHUSHI_FILE = os.path.join(BASE_DIR, "data",
+                           "Table3-differential_expressiong_WTvsPerKO.xlsx")
+
+if not os.path.exists(KHUSHI_FILE):
+    print(f"  Skipping — Khushi's file not found at: {KHUSHI_FILE}")
+else:
+    wb = openpyxl.load_workbook(KHUSHI_FILE)
+
+    # --- Load Khushi's DE_all (all transcripts, background) ---
+    # Include ALL transcript IDs: both ENSMUST (annotated) and UUID (novel).
+    # Both our Illumina data and Khushi's Nanopore data used the same custom
+    # transcriptome (transcriptome_ext.fa), so UUID IDs are shared.
+    ws_all     = wb["DE_all"]
+    rows_all   = list(ws_all.iter_rows(values_only=True))
+    header_all = list(rows_all[0])
+    khushi_all_tx = {}   # transcript_id -> {log2FC, padj, gene_name}
+    for r in rows_all[1:]:
+        row = dict(zip(header_all, r))
+        txid = str(row.get("transcript_id", "")).strip()
+        if not txid or txid == "None":
+            continue
+        try:
+            lfc  = float(row["log2FC_perko"])
+            padj = float(row["padj_per_ko"])
+        except (TypeError, ValueError):
+            continue
+        khushi_all_tx[txid] = {
+            "log2FC": lfc,
+            "padj":   padj,
+            "gene_name": str(row.get("mgi_symbol", "")) or "unannotated",
+        }
+
+    # --- Load Khushi's perKO_sig (significant transcripts) ---
+    # Sheet is pre-filtered: padj < 0.05 AND |log2FC| > 1.5
+    # Include all IDs (annotated + novel UUID).
+    ws_sig    = wb["perKO_sig"]
+    rows_sig  = list(ws_sig.iter_rows(values_only=True))
+    header_sig = [str(c) if c is not None else "idx" for c in rows_sig[0]]
+    khushi_sig_tx = set()   # transcript_ids that are significant in Nanopore
+    for r in rows_sig[1:]:
+        row = dict(zip(header_sig, r))
+        txid = str(row.get("transcript_id", "")).strip()
+        if txid and txid != "None":
+            khushi_sig_tx.add(txid)
+
+    # --- Load our Illumina data at transcript level ---
+    our_tx = pd.read_csv(DESEQ_FILE, sep="\t")
+    our_tx = our_tx.dropna(subset=["log2FoldChange", "padj_gene_stageR"])
+    our_tx = our_tx.set_index("transcript_id")
+
+    # Significance: padj_gene_stageR < 0.05 AND |log2FC| > 1.5 (matching Khushi)
+    our_sig_tx = set(our_tx[
+        (our_tx["padj_gene_stageR"] < PADJ_GENE) &
+        (our_tx["log2FoldChange"].abs() > LFC_THRESH_15)
+    ].index)
+
+    # tx_to_name: transcript_id -> gene_name (from our data)
+    tx_to_name = our_tx["gene_name"].to_dict()
+
+    # --- Common transcripts (ENSEMBL IDs in both datasets) ---
+    common_tx = set(our_tx.index) & set(khushi_all_tx.keys())
+    nano_sig_tx_common = khushi_sig_tx & common_tx
+
+    print(f"  Khushi transcripts in DE_all (annot+novel)        : {len(khushi_all_tx)}")
+    print(f"  Khushi significant (padj<0.05, |log2FC|>1.5)     : {len(khushi_sig_tx)} (annot+novel)")
+    print(f"  Our Illumina transcripts                          : {len(our_tx)}")
+    print(f"  Our significant (padj<0.05, |log2FC|>1.5)        : {len(our_sig_tx)}")
+    print(f"  Common transcripts (in both datasets)             : {len(common_tx)}")
+    overlap_tx = our_sig_tx & khushi_sig_tx & common_tx
+    print(f"  Overlap (sig in both, annot+novel)                : {len(overlap_tx)}")
+
+    # --- Excel overlap table ---
     rows_out = []
-    for gene_id in sorted(overlap_ids):
-        ill   = our_sig_genes.loc[gene_id]
-        nano  = khushi_lookup[gene_id]
-        lfc_ill = round(ill["log2FoldChange"], 4)
+    for txid in sorted(overlap_tx):
+        ill  = our_tx.loc[txid]
+        nano = khushi_all_tx[txid]
+        lfc_ill = round(float(ill["log2FoldChange"]), 4)
+        lfc_nan = round(nano["log2FC"], 4)
         dir_ill = "UP" if lfc_ill > 0 else "DOWN"
-        consistent = (dir_ill == nano["direction_nanopore"])
+        dir_nan = "UP" if lfc_nan > 0 else "DOWN"
         rows_out.append({
-            "gene_id":               gene_id,
-            "gene_name":             gene_map.get(gene_id, "unannotated"),
-            "log2FC_illumina":       lfc_ill,
-            "padj_illumina_stageR":  round(ill["padj_gene_stageR"], 6),
-            "direction_illumina":    dir_ill,
-            "log2FC_nanopore":       nano["log2FC_nanopore"],
-            "padj_nanopore":         nano["padj_nanopore"],
-            "direction_nanopore":    nano["direction_nanopore"],
-            "consistent_direction":  consistent,
+            "transcript_id":        txid,
+            "gene_id":              ill.get("gene_id", ""),
+            "gene_name":            tx_to_name.get(txid, "unannotated"),
+            "log2FC_illumina":      lfc_ill,
+            "padj_illumina_stageR": round(float(ill["padj_gene_stageR"]), 6),
+            "direction_illumina":   dir_ill,
+            "log2FC_nanopore":      lfc_nan,
+            "padj_nanopore":        round(nano["padj"], 6),
+            "direction_nanopore":   dir_nan,
+            "consistent_direction": dir_ill == dir_nan,
         })
 
     overlap_df = pd.DataFrame(rows_out).sort_values("gene_name")
     out_path   = os.path.join(TABLES_DIR, "step15_DE_overlap_Illumina_vs_Nanopore.xlsx")
     overlap_df.to_excel(out_path, index=False)
     autofit_excel(out_path)
-
-    n_consistent = overlap_df["consistent_direction"].sum()
-    print(f"  Consistent direction       : {n_consistent} / {len(overlap_df)}")
+    n_consistent = overlap_df["consistent_direction"].sum() if len(overlap_df) > 0 else 0
+    print(f"  Consistent direction : {n_consistent} / {len(overlap_df)}")
     print(f"  Saved: step15_DE_overlap_Illumina_vs_Nanopore.xlsx")
 
-    # -------------------------------------------------------------------------
-    # STEP 15 — Concordance scatter: log2FC Illumina vs Nanopore
-    # Produced in two versions:
-    #   v1 (original) : full axis range, all outliers visible
-    #   v2 (bis)      : axes clipped to ±15; extreme outliers shown as triangles
-    # -------------------------------------------------------------------------
-    print("\n  Generating DE concordance scatter plots (original + bis)...")
-
-    from matplotlib.lines import Line2D
-
-    # Build arrays over genes present in both datasets
-    common_genes = set(de_full.index) & set(khushi_all_lookup.keys())
-    ill_sig_set  = set(de_full[de_full["padj_gene_stageR"] < PADJ_GENE].index)
-    nano_sig_set = set(khushi_lookup.keys())
-
-    x_vals, y_vals, colors, sizes, gids = [], [], [], [], []
-    for gid in common_genes:
-        x = de_full.loc[gid, "log2FoldChange"]
-        y = khushi_all_lookup[gid]["log2FC"]
-        sig_ill  = gid in ill_sig_set
-        sig_nano = gid in nano_sig_set
-        x_vals.append(x);  y_vals.append(y);  gids.append(gid)
+    # --- Build scatter arrays ---
+    x_vals, y_vals, colors, sizes, tx_ids = [], [], [], [], []
+    for txid in common_tx:
+        x = float(our_tx.loc[txid, "log2FoldChange"])
+        y = khushi_all_tx[txid]["log2FC"]
+        sig_ill  = txid in our_sig_tx
+        sig_nano = txid in khushi_sig_tx
+        x_vals.append(x);  y_vals.append(y);  tx_ids.append(txid)
         if sig_ill and sig_nano:
             colors.append("#E69F00"); sizes.append(60)
         elif sig_ill:
@@ -633,16 +800,17 @@ else:
             ax.text(0.01, 0.99, "▲ clipped (|log₂FC| > 15)",
                     transform=ax.transAxes, fontsize=7, color="#AAAAAA", va="top")
 
-        # --- Labels: orange dots only, one per gene ---
-        # Step 1: collect dot positions
+        # --- Labels: orange dots only, one label per gene name ---
+        # Step 1: collect dot positions — use tx_to_name for gene name
         gene_best = {}
-        for i, gid in enumerate(gids):
+        for i, txid in enumerate(tx_ids):
             if not both_sig_mask[i]:
                 continue
             x_real, y_real = x_arr[i], y_arr[i]
-            if max(abs(x_real), abs(y_real)) <= 1.5:
-                continue
-            gname = gene_map.get(gid, gid)
+            # Both already pass |log2FC|>1.5 by construction — label all orange
+            gname = tx_to_name.get(txid, txid)
+            if gname == "unannotated":
+                gname = txid   # fallback to transcript ID
             if gname not in gene_best or abs(x_real) > abs(gene_best[gname][0]):
                 gene_best[gname] = (x_plot[i], y_plot[i])
 
@@ -698,14 +866,15 @@ else:
 
     # --- v1: original (full range) ---
     fig, ax = plt.subplots(figsize=(13, 7))
-    draw_de_scatter(ax, x_arr, y_arr, colors, sizes, gids, both_sig_mask, clip=None)
+    draw_de_scatter(ax, x_arr, y_arr, colors, sizes, tx_ids, both_sig_mask, clip=None)
     ax.legend(handles=legend_elements, fontsize=8,
               bbox_to_anchor=(1.02, 1), loc="upper left")
     ax.set_xlabel("log₂ fold change — Illumina (PerDKO / WT)", fontsize=12)
     ax.set_ylabel("log₂ fold change — Nanopore (PerDKO / WT)", fontsize=12)
     ax.set_title(
-        "DE concordance: Illumina vs Nanopore (PerDKO vs WT)\n"
-        f"All genes tested in both platforms (n={len(common_genes)})", fontsize=11)
+        "DE concordance: Illumina vs Nanopore (PerDKO vs WT) — transcript level\n"
+        f"Transcripts in both platforms (n={len(common_tx)}) | threshold: padj<0.05, |log₂FC|>1.5",
+        fontsize=11)
     plt.tight_layout()
     p = os.path.join(OUT_DIR, "step15_DE_concordance_scatter.png")
     plt.savefig(p, dpi=150, bbox_inches="tight");  plt.close()
@@ -713,14 +882,14 @@ else:
 
     # --- v2 bis: clipped axes ±15 ---
     fig, ax = plt.subplots(figsize=(13, 7))
-    draw_de_scatter(ax, x_arr, y_arr, colors, sizes, gids, both_sig_mask, clip=15)
+    draw_de_scatter(ax, x_arr, y_arr, colors, sizes, tx_ids, both_sig_mask, clip=15)
     ax.legend(handles=legend_elements, fontsize=8,
               bbox_to_anchor=(1.02, 1), loc="upper left")
     ax.set_xlabel("log₂ fold change — Illumina (PerDKO / WT)", fontsize=12)
     ax.set_ylabel("log₂ fold change — Nanopore (PerDKO / WT)", fontsize=12)
     ax.set_title(
-        "DE concordance: Illumina vs Nanopore (PerDKO vs WT)\n"
-        f"All genes tested in both platforms (n={len(common_genes)}) — axes clipped ±15",
+        "DE concordance: Illumina vs Nanopore (PerDKO vs WT) — transcript level\n"
+        f"Transcripts in both platforms (n={len(common_tx)}) — axes clipped ±15 | padj<0.05, |log₂FC|>1.5",
         fontsize=11)
     plt.tight_layout()
     p = os.path.join(OUT_DIR, "step15_DE_concordance_scatter_v2.png")
