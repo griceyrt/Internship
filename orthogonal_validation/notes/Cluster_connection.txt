@@ -1,0 +1,6 @@
+CLUSTER CONNECTION
+
+ssh-add ~/.ssh/id_ed25519
+ssh -A grangel@ssh.psmn.ens-lyon.fr
+# then once inside the gateway:
+ssh allo-psmn.psmn.ens-lyon.fr

@@ -1,0 +1,15 @@
+{
+  "salmon_version": "2.0.0",
+  "index": "/Users/gricey/Desktop/Internship/orthogonal_validation/scripts/../data/transcriptome_ext_index",
+  "libType": "A",
+  "output": "/Users/gricey/Desktop/Internship/orthogonal_validation/scripts/../results/SRP212166_salmon_2026-06-29/SRR9606470/",
+  "mates1": [
+    "/Users/gricey/Desktop/Internship/orthogonal_validation/scripts/../temp/SRR9606470_trimmed_R1.fastq.gz"
+  ],
+  "mates2": [
+    "/Users/gricey/Desktop/Internship/orthogonal_validation/scripts/../temp/SRR9606470_trimmed_R2.fastq.gz"
+  ],
+  "unmatedReads": [],
+  "threads": 7,
+  "sketch": false
+}
