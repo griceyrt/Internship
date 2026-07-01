@@ -32,7 +32,7 @@ SUPPA_DIR = os.path.join(BASE, "results", "suppa_2026-06-20", "diff")
 NAN_DIR   = os.path.join(BASE, "data", "nanopore_suppa")
 DESEQ     = os.path.join(BASE, "results", "normalisation", "deseq2_KO_vs_WT.tsv")
 KHUSHI    = os.path.join(BASE, "data", "Table3-differential_expressiong_WTvsPerKO.xlsx")
-OUT       = os.path.join(BASE, "results", "figures", "figures_final")
+OUT       = os.path.join(BASE, "results", "figures", "figures_from_script")
 os.makedirs(OUT, exist_ok=True)
 
 # =============================================================================

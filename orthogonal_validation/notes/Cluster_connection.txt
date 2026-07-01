@@ -1,6 +1,14 @@
 CLUSTER CONNECTION
 
+# Run on your Mac:
 ssh-add ~/.ssh/id_ed25519
 ssh -A grangel@ssh.psmn.ens-lyon.fr
-# then once inside the gateway:
+
+# Then once inside the gateway:
 ssh allo-psmn.psmn.ens-lyon.fr
+
+# Then activate the bioinformatics tools environment:
+conda activate biotools
+
+# Verify tools are available:
+salmon --version && prefetch --version && cutadapt --version
