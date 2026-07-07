@@ -30,10 +30,10 @@
      inkscape:cy="160.12297"
      inkscape:window-width="1314"
      inkscape:window-height="886"
-     inkscape:window-x="572"
+     inkscape:window-x="606"
      inkscape:window-y="30"
      inkscape:window-maximized="0"
-     inkscape:current-layer="axes_1" />
+     inkscape:current-layer="figure_1" />
   <metadata
      id="metadata1">
     <rdf:RDF>
@@ -517,7 +517,7 @@
            style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:14.6667px;font-family:Arial;-inkscape-font-specification:'Arial Bold';writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect593);shape-padding:0.632445;display:inline;fill:#000000;fill-opacity:1;stroke-width:0.974667;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none"><tspan
              x="8.8554688"
              y="207.37125"
-             id="tspan2">dPSI Nanopore (PerDKO - WT)</tspan></text>
+             id="tspan1">dPSI Nanopore (PerDKO - WT)</tspan></text>
       </g>
       <g
          id="PathCollection_1">

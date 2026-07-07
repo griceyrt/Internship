@@ -1,0 +1,104 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2870
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica-BoldOblique;\f1\fswiss\fcharset0 Helvetica;\f2\fnil\fcharset0 AndaleMono;
+\f3\fswiss\fcharset0 Helvetica-Bold;}
+{\colortbl;\red255\green255\blue255;\red251\green2\blue255;\red0\green0\blue0;\red33\green255\blue255;
+}
+{\*\expandedcolortbl;;\cssrgb\c100000\c25279\c100000;\cssrgb\c0\c0\c0;\cssrgb\c0\c99144\c100000;
+}
+\paperw11900\paperh16840\margl1440\margr1440\vieww9760\viewh16620\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\i\b\fs24 \cf2 \cb3 ========= CLUSTER CONNECTION =========
+\f1\i0\b0 \cf0 \cb1 \
+\
+INTERNET (my Mac)\
+\uc0\u9474 \
+\uc0\u9474   
+\f2 ssh -A grangel@ssh.psmn.ens-lyon.fr
+\f1 \
+\uc0\u9660 \
+\uc0\u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \
+ssh.psmn.ens-lyon.fr   (EXTERNAL GATEWAY)\
+\uc0\u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \
+Purpose: security door, only for entering\
+Can do:  nothing useful here\
+\uc0\u9474 \
+\uc0\u9474   
+\f2 ssh allo-psmn.psmn.ens-lyon.fr
+\f1 \
+\uc0\u9660 \
+\uc0\u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \
+allo-psmn.psmn.ens-lyon.fr   (ENTRY NODE)\
+\uc0\u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \
+Purpose: internal entry point\
+Can do:  transfer files, basic commands\
+Cannot:  submit jobs, run heavy things\
+\uc0\u9474 \
+\uc0\u9474   
+\f2 ssh -A cl5218comp1
+\f1 \
+\uc0\u9660 \
+\uc0\u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \
+cl5218comp1   (LOGIN/BUILD NODE)\
+\uc0\u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \
+Purpose: where you actually work from\
+Can do:  submit jobs (sbatch), edit files,\
+         check queues (squeue), transfer files\
+Cannot:  run heavy computations directly\
+\uc0\u9474 \
+\uc0\u9474   
+\f2 sbatch myscript.sh
+\f1 \
+\uc0\u9660 \
+\uc0\u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \
+c6420node201  (COMPUTE NODE)\
+\uc0\u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \
+Purpose: where jobs actually run\
+Managed: automatically by SLURM\
+Can do:  heavy computation, many cores, lots of RAM\
+Access:  you don't SSH here directly \'97 SLURM handles it\
+\
+\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f3\b \cf0 Full connection from scratch 
+\f1\b0 \uc0\u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \u9473 \
+# On your Mac:\
+ssh-add ~/.ssh/id_ed25519                          # load your key\
+ssh -A -J grangel@ssh.psmn.ens-lyon.fr \\\
+    grangel@allo-psmn.psmn.ens-lyon.fr             # jump through gateway to entry node\
+\
+# On allo-psmn:\
+ssh -A cl5218comp1                                  # go to login node\
+\
+# On cl5218comp1:\
+sbatch myscript.sh                                  # submit job to compute node\
+squeue -u grangel                                   # check job status\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+\cf0 \
+=============================================================\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+\cf0 =============================================================\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+\cf0 \
+\
+ssh-add ~/.ssh/id_ed25519\
+ssh -A grangel@ssh.psmn.ens-lyon.fr\
+# then once inside the gateway:\
+ssh allo-psmn.psmn.ens-lyon.fr\
+\
+Or\
+\
+ssh-add ~/.ssh/id_ed25519\
+ssh -A -J grangel@ssh.psmn.ens-lyon.fr grangel@allo-psmn.psmn.ens-lyon.fr\
+ssh -A cl5218comp1\
+\
+
+\f3\b \cf4 \cb3 JOB STATUS:\cb1  
+\f1\b0 \cf0 squeue -u grangel\
+\
+Check mapping rates when the job finishes:\
+for srr in SRR9606468 SRR9606469 SRR9606470 SRR9606471 SRR9606472 SRR9606473 SRR9606474 SRR9606475; do\
+    rate=$(grep "Mapping rate" ~/orthogonal_validation/results/SRP212166_salmon_*/SRP212166.log | grep $srr)\
+    echo "$srr: $rate"\
+done}

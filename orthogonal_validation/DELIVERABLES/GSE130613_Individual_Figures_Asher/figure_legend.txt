@@ -1,0 +1,70 @@
+FIGURE LEGEND — Orthogonal Validation (GSE130613 vs Nanopore, PerDKO vs WT)
+Generated: 2026-06-30
+Dataset: Liver, CT16-20, constant darkness, n=4 per condition
+
+=== Illumina_events_dPSI_volcano.svg ===
+dPSI volcano plot — Illumina SUPPA2 diffSplice results (PerDKO vs WT).
+X-axis: dPSI (PerDKO − WT). Y-axis: −log10(p-value).
+Threshold lines: |dPSI| = 0.1 (vertical), p = 0.3 (horizontal).
+Grey dots: not significant.
+Coloured dots (by event type, significant in Illumina, |dPSI|>0.1, p<0.3):
+  SE (skipping exon)       = #CC79A7 (pink/magenta)
+  MX (mutually exclusive)  = #0072B2 (dark blue)
+  RI (retained intron)     = #D55E00 (orange-red)
+  A3 (alternative 3' ss)   = #E69F00 (amber)
+  A5 (alternative 5' ss)   = #56B4E9 (light blue)
+  AF (alternative first)   = #009E73 (teal/green)
+  AL (alternative last)    = #F0E442 (yellow)
+Total significant events: 514
+
+=== Illumina_Nanopore_events_scatter.svg ===
+dPSI concordance scatter — Illumina vs Nanopore splicing (PerDKO vs WT).
+X-axis: dPSI Illumina (PerDKO − WT). Y-axis: dPSI Nanopore (PerDKO − WT).
+Dashed diagonal: y=x line (perfect agreement).
+Thresholds: Illumina |dPSI|>0.1, p<0.3 | Nanopore |dPSI|>0.1, p<0.05.
+Grey dots:   not significant in either platform (n=22)
+Blue dots:   significant in Illumina only (n=481)
+Green dots:  significant in Nanopore only (n=888)
+Orange dots: significant in BOTH platforms — orthogonal validation (n=32)
+Total events in both datasets: 1,423. Labels on orange dots only (gene names).
+
+=== Illumina_DE_genes_volcano.svg ===
+DE volcano plot — Illumina DESeq2 + stageR results (PerDKO vs WT), gene level.
+X-axis: log2 fold change (PerDKO / WT). Y-axis: −log10(padj, stageR stage 1).
+Threshold lines: |log2FC| = 0.5 (vertical), padj = 0.05 (horizontal).
+Grey dots:   not significant
+Orange/red dots (#D55E00): upregulated in PerDKO (padj<0.05, log2FC>0.5)
+Blue dots (#0072B2):       downregulated in PerDKO (padj<0.05, log2FC<-0.5)
+Triangles (▲): points clipped at y=13.5 (extreme outliers).
+Labels: circadian and selected genes (Kiran's list).
+
+=== Illumina_Nanopore_DE_genes_concordance.svg ===
+DE concordance scatter — Illumina vs Nanopore, GENE level (PerDKO vs WT).
+X-axis: log2FC Illumina. Y-axis: log2FC Nanopore.
+One dot per gene (representative transcript = highest |log2FC|).
+Threshold (both sides): padj<0.05 AND |log2FC|>1.5.
+Grey dots:   present in both datasets, not significant in either (n=9,519)
+Blue dots:   significant in Illumina only (n=188)
+Green dots:  significant in Nanopore only (n=116)
+Orange dots: significant in BOTH platforms (n=27) — labeled with gene names
+Total genes in both datasets: 9,850.
+See: step14_step15_gene_transcript_mapping.xlsx
+
+=== Illumina_Nanopore_DE_transcript_concordance.svg ===
+DE concordance scatter — Illumina vs Nanopore, TRANSCRIPT level (PerDKO vs WT).
+X-axis: log2FC Illumina. Y-axis: log2FC Nanopore. Axes clipped at ±15.
+One dot per transcript (includes annotated ENSMUST and novel UUID isoforms).
+Both datasets used the same custom transcriptome (transcriptome_ext.fa).
+Threshold (both sides): padj<0.05 AND |log2FC|>1.5.
+Grey dots:   present in both datasets, not significant in either (n=12,602)
+Blue dots:   significant in Illumina only (n=256)
+Green dots:  significant in Nanopore only (n=92)
+Orange dots: significant in BOTH platforms (n=16) — labeled with gene names
+              (11 annotated ENSMUST + 5 novel UUID transcripts)
+              11/16 show consistent direction of change across platforms
+Total transcripts in both datasets: 12,966.
+See: step15_DE_overlap_Illumina_vs_Nanopore.xlsx
+     step15_khushi_267_transcript_breakdown.xlsx
+
+Note: Khushi's 267 Nanopore-significant transcripts are accounted for as:
+  16 orange + 92 green + 18 NA padj + 141 zero reads in Illumina = 267
