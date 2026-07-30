@@ -13,3 +13,19 @@ raw_data/
 temp/
 *.sra
 *.fastq.gz
+
+# Generated analysis output — code is what's tracked, not results
+# (results/ was already partly tracked from earlier work; this only stops
+# NEW/changed files there from being picked up by future git add)
+results/
+
+# Auto-generated QC reports — regenerable from raw data, large HTML blobs
+multiqc_*.html
+*multiqc_report.html
+
+# Python/Jupyter/R caches and scratch state — never useful to track
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.Rhistory
+.Rproj.user/

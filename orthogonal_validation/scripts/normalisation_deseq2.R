@@ -34,10 +34,10 @@ library(stageR)
 # PATHS — update SALMON_DATE to match your results folder
 # =============================================================================
 BASE_DIR    <- "/Users/gricey/Desktop/Internship/orthogonal_validation"
-SALMON_DATE <- "2026-06-20"   # <-- UPDATE if different
+SALMON_DATE <- "2026-07-16"   # <-- UPDATE if different
 SALMON_DIR  <- file.path(BASE_DIR, "results", paste0("SRP194523_salmon_", SALMON_DATE))
 GTF_PATH    <- "/Users/gricey/Desktop/Internship/boundary_analysis/data/transcriptome_productivity.gtf"
-OUTPUT_DIR  <- file.path(BASE_DIR, "results", "normalisation")
+OUTPUT_DIR  <- file.path(BASE_DIR, "results", "normalisation_3utr_extended")
 dir.create(OUTPUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
 # =============================================================================
@@ -337,5 +337,5 @@ cat("Significant transcripts (stageR stage 2, padj<0.05):", sig_tx, "\n")
 cat("Saved: deseq2_KO_vs_WT.tsv\n")
 
 cat("\n=== DONE ===\n")
-cat("SUPPA input table : results/normalisation/combined_norm.tab\n")
-cat("DESeq2 results    : results/normalisation/deseq2_KO_vs_WT.tsv\n")
+cat("SUPPA input table :", file.path(OUTPUT_DIR, "combined_norm.tab"), "\n")
+cat("DESeq2 results    :", file.path(OUTPUT_DIR, "deseq2_KO_vs_WT.tsv"), "\n")
