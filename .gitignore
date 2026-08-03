@@ -7,6 +7,9 @@ IGV/
 printer/
 *.pdf
 papers/*.pdf
+*.pdf
+papers/*.pdf
+hfd_organoid_splicing/reference/*.pptx
 
 # Large raw data files — re-downloadable, not for git
 raw_data/

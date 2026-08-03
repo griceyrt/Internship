@@ -1,0 +1,224 @@
+================================================================================
+PROJECT 4 — HFD ORGANOID SPLICING LANDSCAPE
+Pipeline plan: tools, versions, steps, inputs/outputs
+Drafted: 2026-08-03
+================================================================================
+
+AIM
+----
+Do alternative splicing patterns change across HFD timepoints (relative to the
+WT_SD baseline)? --> identify genes with significant splicing changes -->
+GO (Biological Process) enrichment on those genes.
+
+This runs alongside (not instead of) Desmond's existing transcriptomics
+(DESeq2 gene-level DE) and proteomics work. We reuse his salmon quantification
+settings/reference so results are directly comparable, then add a splicing
+layer (SUPPA2) that his pipeline did not include.
+
+Everything below is meant to run on the PSMN cluster as batch scripts, not in
+a local sandbox. Tool versions marked "CONFIRM ON CLUSTER" are best-guess
+current stable versions — before finalizing scripts, run `module avail
+<tool>` and `<tool> --version` on PSMN and record the ACTUAL versions used at
+the top of each script (for Kiran's reproducibility requirement).
+
+
+SAMPLES
+-------
+15 single-end fastq.gz files, 5 conditions x 3 replicates. Mapping confirmed
+by Kiran 2026-08-03 (see meta/sample_sheet.tsv):
+
+  Lib1-3    -> WT_SD      (baseline / "T0")
+  Lib4-6    -> W8_WHFD    (8 weeks high-fat diet)
+  Lib7-9    -> W18_WHFD   (18 weeks)
+  Lib10-12  -> W24_WHFD   (24 weeks)
+  Lib13-15  -> W42_WHFD   (42 weeks)
+
+Raw file naming: Lib{n}_70_25_S{n}_R1_001.fastq.gz (R1 only — single-end read)
+
+
+REFERENCE GENOME
+-----------------
+Source: Ensembl, Mus musculus, assembly GRCm39, release 115
+(confirmed from Desmond's brnaseq_pipeline.sh — same build he used for his
+salmon index, so our splicing PSI values stay comparable to his DE results)
+
+Files needed (download from Ensembl release-115 FTP):
+  - Mus_musculus.GRCm39.dna.primary_assembly.fa   (genome FASTA -> used as decoy)
+  - Mus_musculus.GRCm39.cdna.all.fa               (transcriptome FASTA -> salmon targets)
+  - Mus_musculus.GRCm39.115.gtf                   (annotation -> SUPPA2 events + gene models)
+
+No custom transcriptome — stock Ensembl annotation, unlike project 2
+(PerDKO used a custom GTF).
+
+
+TOOLS & VERSIONS (CONFIRM ON CLUSTER BEFORE FINALIZING)
+---------------------------------------------------------
+  FastQC        v0.12.x     - CONFIRM ON CLUSTER   - raw & trimmed read QC
+  MultiQC       v1.2x       - CONFIRM ON CLUSTER   - aggregate QC reports
+  fastp         v0.23.x     - CONFIRM ON CLUSTER   - adapter/quality trimming
+  GNU parallel  (any)       - CONFIRM ON CLUSTER   - parallelize per-sample steps
+  STAR          v2.7.x      - CONFIRM ON CLUSTER   - only for 1-sample strandedness spot-check (optional, see Phase 4)
+  samtools      v1.1x       - CONFIRM ON CLUSTER   - BAM indexing (only if Phase 4 run)
+  RSeQC         v5.0.x      - CONFIRM ON CLUSTER   - infer_experiment.py (only if Phase 4 run)
+  Salmon        v1.10.x     - CONFIRM ON CLUSTER   - decoy-aware index + quantification
+  SUPPA2        v2.3        - CONFIRM ON CLUSTER   - AS event generation, PSI, diffSplice
+  R             v4.5.x      - CONFIRM ON CLUSTER   - GO enrichment, figures, xlsx tables
+    R packages: clusterProfiler, org.Mm.eg.db, tidyverse, openxlsx/writexl
+
+Record exact `--version` output for each tool at the top of every script
+before sending scripts to Kiran.
+
+
+================================================================================
+PIPELINE FLOWCHART (inputs -> tool -> outputs, per phase)
+================================================================================
+
+PHASE 0 — Reference download & indexing
+-----------------------------------------
+  INPUT:   (none — download from Ensembl)
+  TOOL:    wget/curl (Ensembl FTP, release-115)
+  OUTPUT:  Mus_musculus.GRCm39.dna.primary_assembly.fa
+           Mus_musculus.GRCm39.cdna.all.fa
+           Mus_musculus.GRCm39.115.gtf
+
+  INPUT:   genome FASTA
+  TOOL:    grep '^>' + sed          -> decoys.txt (list of genome seq names)
+  OUTPUT:  decoys.txt
+
+  INPUT:   cDNA FASTA + genome FASTA
+  TOOL:    cat (concatenate cDNA then genome)
+  OUTPUT:  gentrome.fa
+
+  INPUT:   gentrome.fa, decoys.txt
+  TOOL:    salmon index
+  OUTPUT:  salmon_index/  (directory)
+
+
+PHASE 1 — Raw QC
+------------------
+  INPUT:   Lib1..Lib15_*_R1_001.fastq.gz   (15 files)
+  TOOL:    fastqc
+  OUTPUT:  *_fastqc.html, *_fastqc.zip   (per sample)
+
+  INPUT:   all *_fastqc.zip
+  TOOL:    multiqc
+  OUTPUT:  raw_mqc_report.html
+
+
+PHASE 2 — Trimming
+---------------------
+  INPUT:   Lib{n}_*_R1_001.fastq.gz  (per sample)
+  TOOL:    fastp
+           flags: --trim_poly_g --qualified_quality_phred 28
+                  --length_required 35 --cut_front --cut_tail
+                  --cut_window_size 4 --cut_mean_quality 28
+  OUTPUT:  Lib{n}_*_trimmed.fastq.gz   (per sample)
+           Lib{n}_*.html   (fastp report, per sample)
+
+
+PHASE 3 — Post-trim QC
+-------------------------
+  INPUT:   Lib{n}_*_trimmed.fastq.gz  (15 files)
+  TOOL:    fastqc -> multiqc
+  OUTPUT:  trimmed_mqc_report.html
+
+
+PHASE 4 — Strandedness check (OPTIONAL — already confirmed by Desmond)
+--------------------------------------------------------------------------
+  Desmond already established this dataset is single-end, forward stranded
+  (SF) by aligning Lib1 with STAR and running RSeQC infer_experiment.py.
+  Re-running this is only useful as a spot-check, not required for the
+  pipeline to proceed. If skipped, use library type "SF" directly in
+  Phase 5.
+
+  INPUT:   GTF
+  TOOL:    gtfToGenePred + genePredToBed
+  OUTPUT:  genes.bed
+
+  INPUT:   one trimmed fastq (e.g. Lib1), genome FASTA, GTF
+  TOOL:    STAR --runMode genomeGenerate, then STAR --runMode alignReads
+  OUTPUT:  Lib1_Aligned.sortedByCoord.out.bam (+ .bai via samtools index)
+
+  INPUT:   Lib1 BAM, genes.bed
+  TOOL:    infer_experiment.py (RSeQC)
+  OUTPUT:  strandedness report (text) -> expect "SE forward stranded"
+
+
+PHASE 5 — Salmon quantification
+-----------------------------------
+  INPUT:   Lib{n}_*_trimmed.fastq.gz (per sample), salmon_index/
+  TOOL:    salmon quant
+           flags: -l SF --seqBias --gcBias --validateMappings
+  OUTPUT:  salmon/Lib{n}_*/quant.sf   (per sample — transcript-level TPM + counts)
+
+  INPUT:   all quant.sf + fastp/fastqc logs
+  TOOL:    multiqc
+  OUTPUT:  complete_qc_report.html
+
+
+PHASE 6 — SUPPA2: generate AS events
+----------------------------------------
+  INPUT:   Mus_musculus.GRCm39.115.gtf
+  TOOL:    suppa.py generateEvents
+           (all 7 local event types generated separately: SE, MX, RI, A3,
+           A5, AF, AL — matches convention used in projects 1-3)
+  OUTPUT:  events/*.ioe   (one .ioe file per event type)
+
+
+PHASE 7 — SUPPA2: compute PSI per sample
+---------------------------------------------
+  INPUT:   events/*.ioe, all salmon quant.sf (TPM column extracted -> combined TPM matrix)
+  TOOL:    suppa.py psiPerEvent
+  OUTPUT:  psi/*.psi   (PSI values per event per sample, one file per event type)
+
+
+PHASE 8 — SUPPA2: differential splicing (diffSplice)
+---------------------------------------------------------
+  INPUT:   .ioe + .psi + TPM matrix, split by comparison group
+  TOOL:    suppa.py diffSplice
+  COMPARISONS (mirroring Desmond's DE contrasts, each HFD timepoint vs
+  baseline):
+           W8_WHFD  vs WT_SD
+           W18_WHFD vs WT_SD
+           W24_WHFD vs WT_SD
+           W42_WHFD vs WT_SD
+  OUTPUT:  diffsplice/{comparison}_{event_type}.dpsi
+           diffsplice/{comparison}_{event_type}.psivec
+
+
+PHASE 9 — Extract significant splicing genes
+--------------------------------------------------
+  INPUT:   *.dpsi files (all comparisons, all event types)
+  TOOL:    R or Python (custom script)
+           threshold: TBD with Kiran/Bharath (e.g. p<0.05, |dPSI|>0.1 —
+           confirm before finalizing, project 2/3 precedent used p<0.05)
+  OUTPUT:  significant_events.xlsx / .csv (gene, event type, comparison, dPSI, p-value)
+
+
+PHASE 10 — GO enrichment
+------------------------------
+  INPUT:   gene lists from Phase 9 (per comparison and/or union across all)
+  TOOL:    R clusterProfiler::enrichGO (ont = "BP"), org.Mm.eg.db
+           (same approach Desmond used for his DE gene GO enrichment)
+  OUTPUT:  go_enrichment_{comparison}.csv, GO bar plots (.png)
+
+
+PHASE 11 — Final deliverables
+-----------------------------------
+  INPUT:   Phase 9 + Phase 10 outputs
+  TOOL:    R / Python (figures), openxlsx (tables)
+  OUTPUT:  figures/*.png  (dPSI summary plots, GO term plots)
+           results-summary.xlsx  (per-comparison significant events + GO terms)
+
+
+================================================================================
+OPEN QUESTIONS BEFORE FINALIZING SCRIPTS
+================================================================================
+  1. Exact tool versions available on PSMN (module avail + --version)
+  2. Significance thresholds for Phase 9 (padj/p cutoff, |dPSI| cutoff) —
+     confirm with Kiran/Bharath, or default to project 2/3 precedent
+  3. Whether to also run sequential comparisons (W18vs8, W24vs18, W42vs24)
+     in addition to vs-WT_SD, as Desmond did for some of his DE plots
+  4. Whether Phase 4 (strandedness spot-check) is worth re-running or can be
+     skipped entirely given Desmond already confirmed SF
+================================================================================
