@@ -30,6 +30,15 @@ conda activate biotools
 # new dependency given how much friction this env's packages have already
 # caused (see reference_biotools_env_gotchas memory).
 #
+# VERSION-STRIPPING (added 2026-08-05, after first run failed): salmon's
+# quant.sf "Name" column carries the transcript ID WITH version suffix
+# (e.g. ENSMUST00000200568.2), because that's what's in the cDNA FASTA
+# headers. But the GTF's transcript_id attribute -- and therefore every
+# .ioe event file SUPPA2 generated -- does NOT carry the version suffix
+# (just ENSMUST00000200568). psiPerEvent failed to find almost every
+# transcript as a result. Fix: strip everything from the first "." onward
+# before writing each transcript ID, so both files agree.
+#
 # PREREQUISITE: meta/sample_sheet.tsv must be synced to
 # $HOME/hfd_organoid_splicing/meta/ (same rsync pattern as scripts/) --
 # not yet done as of writing this script, do it before running.
@@ -84,7 +93,7 @@ for s in samples:
         f.readline()  # skip header
         for line in f:
             fields = line.rstrip("\n").split("\t")
-            ids.append(fields[0])
+            ids.append(fields[0].split(".")[0])  # strip version suffix
             tpms.append(fields[3])
 
     if transcript_ids is None:
