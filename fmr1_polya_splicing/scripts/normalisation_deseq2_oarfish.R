@@ -86,13 +86,28 @@ cat("tx2gene built:", nrow(tx2gene), "transcripts.\n")
 # STEP 5 -- tximport (transcript-level, for SUPPA)
 # =============================================================================
 cat("Running tximport (transcript level, oarfish)...\n")
+# NOTE (fixed 2026-08-05): ignoreTxVersion only strips versions when
+# matching against a tx2gene table internally -- with txOut=TRUE and no
+# tx2gene here, it has nothing to strip against and silently does nothing.
+# Confirmed via a real SUPPA failure: the exported TPM file still had
+# versioned IDs (e.g. ENSMUST00000432784.1) while SUPPA's GTF-based .ioe
+# files use non-versioned IDs, causing ~6.3 million "not found" errors
+# (essentially every lookup failing). Fixed by explicitly stripping the
+# version suffix from the row names ourselves, below.
 txi_tx <- tximport(quant_files,
                    type  = "oarfish",
-                   txOut = TRUE)
+                   txOut = TRUE,
+                   ignoreTxVersion = TRUE)
 
 # SUPPA needs TPM (comparable across samples), not raw counts -- tximport's
 # $abundance is TPM regardless of which quantifier produced the input
 tpm_tx <- txi_tx$abundance
+
+# Explicitly strip Ensembl version suffixes (e.g. ".1", ".2") from the
+# transcript IDs so they match the GTF's non-versioned transcript_id
+# convention that SUPPA's .ioe event files use.
+rownames(tpm_tx) <- sub("\\.[0-9]+$", "", rownames(tpm_tx))
+
 cat("Transcripts imported:", nrow(tpm_tx), "\n")
 
 # =============================================================================
@@ -118,7 +133,8 @@ cat("\nRunning tximport (gene level, oarfish)...\n")
 txi_gene <- tximport(quant_files,
                      type    = "oarfish",
                      tx2gene = tx2gene,
-                     txOut   = FALSE)
+                     txOut   = FALSE,
+                     ignoreTxVersion = TRUE)
 
 cat("Running DESeq2 (gene-level)...\n")
 dds <- DESeqDataSetFromTximport(txi_gene,
