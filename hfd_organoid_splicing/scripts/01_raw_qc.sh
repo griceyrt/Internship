@@ -11,28 +11,15 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate biotools
 
-# =============================================================================
-# Phase 1 — raw read QC (HFD organoid splicing project)
 # Author: Gricey
-# Description: FastQC on all 15 raw fastq.gz files + MultiQC aggregate
-#              report. Mirrors Desmond's brnaseq_pipeline.sh QC step exactly
-#              (same tools, same order) so this stays comparable to his run.
 #
-# STORAGE: raw fastq + QC output go on $SCRATCH, not $HOME (see note in
-# 00_download_reference.sh -- $HOME quota is shared lab-wide and too small
-# for this data; $SCRATCH has no quota and is where PSMN docs say large
-# input/output files belong). Only scripts live in $HOME.
+# FastQC + MultiQC on the 15 raw fastq.gz files. Mirrors Desmond's own QC
+# step so results stay comparable to his run.
 #
-# PREREQUISITE: the 15 raw fastq.gz files must already be on the cluster
-# under $SCRATCH_DIR/raw_data/fastq/ before submitting this job. They
-# currently only live locally (Mac, under
-# hfd_organoid_splicing/raw_data/fastq/) -- transfer them up first, e.g.:
-#   ssh grangel@ssh.psmn.ens-lyon.fr "mkdir -p /scratch/Lake/grangel/hfd_organoid_splicing/raw_data/fastq"
-#   rsync -avP --progress \
-#     "/Users/gricey/Desktop/Internship/hfd_organoid_splicing/raw_data/fastq/" \
-#     grangel@ssh.psmn.ens-lyon.fr:/scratch/Lake/grangel/hfd_organoid_splicing/raw_data/fastq/
-# (run that from your Mac terminal, not on the cluster)
-# =============================================================================
+# Requires the 15 fastq.gz files already synced to $SCRATCH_DIR/raw_data/fastq/,
+# e.g. from a local Mac:
+#   rsync -avP raw_data/fastq/ cl5218comp1:/scratch/Lake/grangel/hfd_organoid_splicing/raw_data/fastq/
+# (assumes an SSH config alias "cl5218comp1" set up for the gateway chain)
 
 set -euo pipefail
 
@@ -45,7 +32,7 @@ echo "=== Running FastQC on raw reads ==="
 fastqc -t "$SLURM_CPUS_PER_TASK" -o "$QC_DIR" "$FASTQ_DIR"/*.fastq.gz
 
 echo "=== Aggregating with MultiQC ==="
-multiqc "$QC_DIR" -o "$QC_DIR" -n raw_mqc_report
+multiqc "$QC_DIR" -o "$QC_DIR" -n raw_mqc_report --flat
 
 echo ""
 echo "=== Done. Report: $QC_DIR/raw_mqc_report.html ==="

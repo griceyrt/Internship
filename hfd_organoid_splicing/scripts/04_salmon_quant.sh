@@ -11,22 +11,12 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate biotools
 
-# =============================================================================
-# Phase 5b — salmon quantification (HFD organoid splicing project)
 # Author: Gricey
-# Description: Quantifies each of the 15 trimmed samples against the
-#              release-116 salmon index (03_salmon_index.sh). Flags match
-#              Desmond's brnaseq_pipeline.sh exactly: library type SF
-#              (single-end forward stranded, confirmed by Desmond via STAR +
-#              RSeQC on Lib1 -- we did not re-run this check ourselves, see
-#              notes/pipeline_plan.txt Phase 4), --seqBias --gcBias
-#              --validateMappings.
 #
-# Sequential loop over samples (same reasoning as 02_fastp_trim.sh -- no
-# proven GNU parallel in this env), salmon given all cpus per sample instead.
-#
-# STORAGE: everything on $SCRATCH, only this script lives in $HOME.
-# =============================================================================
+# Quantifies each of the 15 trimmed samples against the salmon index.
+# Flags match Desmond's brnaseq_pipeline.sh: -l SF (single-end forward
+# stranded, confirmed via STAR+RSeQC on his end), --seqBias --gcBias
+# --validateMappings.
 
 set -euo pipefail
 

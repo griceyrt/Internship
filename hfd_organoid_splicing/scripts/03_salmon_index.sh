@@ -11,26 +11,12 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate biotools
 
-# =============================================================================
-# Phase 5 — salmon decoy-aware index (HFD organoid splicing project)
 # Author: Gricey
-# Description: Builds the decoy-aware salmon index against the corrected
-#              release-116 reference (see notes/pipeline_plan.txt and
-#              Desmond's 2026-08-04 emails for why 116, not 115). Steps and
-#              flags mirror brnaseq_pipeline.sh exactly (decoy list from
-#              genome headers, cDNA+genome concatenated into one "gentrome"
-#              fasta, plain `salmon index` with no extra flags -- Desmond's
-#              script didn't use -k/--keepDuplicates, so neither do we, for
-#              consistency with his build).
 #
-# Mem/cpus/time sized generously (32 cpus / 96G / 12h -- a full Lake node
-# has 32 cores and 192GB RAM, so this uses all the cores and half the RAM)
-# since release 116's cDNA fasta turned out much larger than 115's (963M vs
-# 238M decompressed) -- see memory notes on that size jump. Adjust down in
-# future re-runs once we know the real indexing time from this first run.
-#
-# STORAGE: everything on $SCRATCH, only this script lives in $HOME.
-# =============================================================================
+# Decoy-aware salmon index (genome as decoy, cDNA as target). Mirrors
+# brnaseq_pipeline.sh exactly: plain `salmon index`, no -k/--keepDuplicates.
+# Sized generously (32 cpus / 96G) since the GRCm39.116 cDNA is much larger
+# than typical (963M vs ~240M decompressed for most Ensembl releases).
 
 set -euo pipefail
 

@@ -11,32 +11,13 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate biotools
 
-# =============================================================================
-# Phase 8 — SUPPA2 diffSplice (HFD organoid splicing project)
 # Author: Gricey
-# Description: The actual statistical comparison -- for each of the 4 HFD
-#              timepoints vs the WT_SD baseline, and for each of the 7 event
-#              types, tests whether PSI differs significantly. This is the
-#              step that actually answers the project's question.
 #
-# SUPPA2's diffSplice compares exactly two groups at a time, so the TPM
-# matrix and each of the 7 .psi files first get split into one file per
-# condition (5 conditions total: WT_SD, W8/18/24/42_WHFD), matching the
-# proven approach from orthogonal_validation/scripts/run_suppa.sh (there:
-# WT vs KO, 2 groups; here: 5 groups, but only compared pairwise against the
-# WT_SD baseline -- not all 10 possible pairs).
-#
-# Splitting done in Python (not awk like run_suppa.sh) because the header
-# row and data rows in our TPM matrix / .psi files have different column
-# counts (header = N sample labels only, data rows = N labels + 1 leading
-# id column) -- awk's NR==1 vs NR>1 special-casing gets fragile with that
-# offset, plain Python string splitting is more robust and readable.
-#
-# diffSplice flags match the PROVEN working command from run_suppa.sh:
-#   --method empirical -gc (gene-corrected p-values)
-#
-# STORAGE: everything on $SCRATCH, only this script lives in $HOME.
-# =============================================================================
+# Statistical comparison: each of the 4 HFD timepoints vs WT_SD baseline,
+# all 7 event types. diffSplice compares exactly two groups at a time, so
+# the TPM matrix and each .psi file are split per condition first (Python,
+# not awk -- header/data rows have different column counts here).
+# --method empirical -gc matches orthogonal_validation/scripts/run_suppa.sh.
 
 set -euo pipefail
 

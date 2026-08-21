@@ -11,17 +11,11 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate biotools
 
-# =============================================================================
-# Phase 7 — SUPPA2 psiPerEvent (HFD organoid splicing project)
 # Author: Gricey
-# Description: Computes PSI (Percent Spliced In) per event per sample, for
-#              each of the 7 event types, using the combined TPM matrix
-#              (06_build_tpm_matrix.sh) against the .ioe event files
-#              (05_suppa_generate_events.sh).
 #
-# Loops over all *.ioe files rather than hardcoding the 7 event type names,
-# so it automatically adapts if the event set ever changes.
-# =============================================================================
+# Computes PSI per event per sample, for each of the 7 event types, using
+# the combined TPM matrix (06_) against the .ioe event files (05_). Loops
+# over all *.ioe files rather than hardcoding event type names.
 
 set -euo pipefail
 

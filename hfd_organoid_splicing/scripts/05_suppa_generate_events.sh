@@ -11,47 +11,18 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate biotools
 
-# =============================================================================
-# Phase 6 — SUPPA2 generateEvents (HFD organoid splicing project)
 # Author: Gricey
-# Description: Generates local alternative splicing events from the
-#              release-116 GTF. SUPPA2 isn't pip-installed anywhere in the
-#              biotools env (checked, nothing found) -- it's used as a
-#              git-cloned script in every prior project
-#              (https://github.com/comprna/SUPPA.git), so this script clones
-#              it fresh into this project too, matching that convention.
 #
-# Flags copied exactly from the PROVEN working command in
-# orthogonal_validation/scripts/run_suppa.sh:
-#   -e SE SS MX RI FL  -- 5 input codes, expands to 7 output event types
-#                          (SS -> A5 + A3, FL -> AF + AL)
-#   -b S                -- strict boundary mode (matches every prior
-#                           project's default; project 1's "variable"
-#                           boundary mode was specific to that project's own
-#                           boundary-analysis question, not relevant here)
-#   -f ioe              -- local-event .ioe output format (what psiPerEvent/
-#                           diffSplice expect downstream)
+# Generates local AS events from the GTF. SUPPA2 isn't a conda/pip package
+# in biotools -- git-cloned once into $HOME, reused by later SUPPA2 scripts.
+# -e SE SS MX RI FL expands to all 7 event types (SS -> A5+A3, FL -> AF+AL).
+# -b S = strict boundary mode.
 #
-# STORAGE: SUPPA2 itself is code, so it lives in $HOME (cloned once, reused
-# by every future SUPPA2 script). Its output (the actual event files) goes
-# on $SCRATCH like all other data. Only this script's own contents are in
-# $HOME/hfd_organoid_splicing/scripts/ as usual.
-#
-# PATCH (added 2026-08-05, fixed same day): suppa.py unconditionally imports
-# its clustering module (eventClusterer) at the top of the file, which
-# requires sklearn -- and sklearn's scipy dependency has a real bug/
-# incompatibility in this biotools env (ValueError from
-# scipy.special._multiufuncs, survived two attempts to fix numpy/scipy/
-# scikit-learn versions via conda). We never use SUPPA2's clusterEvents
-# command (only generateEvents/psiPerEvent/diffSplice), so rather than keep
-# fighting that dependency, this script patches the clone to make the
-# import optional. NOTE: must catch `except Exception`, not
-# `except ImportError` -- the actual failure is a ValueError raised deep in
-# scipy's own module-level code during the import, not a clean "module not
-# found", so a narrower except clause silently fails to catch it (this bit
-# us on the first attempt). Idempotent (checks if already patched before
-# re-patching), so safe to re-run.
-# =============================================================================
+# suppa.py unconditionally imports its clustering module at the top of the
+# file, which needs scikit-learn/scipy -- broken in this env and unrelated
+# to anything I use (generateEvents/psiPerEvent/diffSplice, not
+# clusterEvents). The block below patches that one import to be optional
+# rather than fighting the dependency; idempotent, safe to re-run.
 
 set -euo pipefail
 
@@ -70,8 +41,6 @@ fi
 SUPPA="python3 $CODE_DIR/SUPPA/suppa.py"
 
 echo "=== Patching suppa.py: make sklearn/clusterEvents import optional ==="
-echo "=== (we never use clusterEvents; unblocks generateEvents/psiPerEvent/diffSplice"
-echo "===  from an unrelated sklearn/scipy incompatibility in this env)"
 if ! grep -q "clusterAnalysis = None" "$CODE_DIR/SUPPA/suppa.py"; then
     python3 - "$CODE_DIR/SUPPA/suppa.py" << 'PYEOF'
 import sys
@@ -91,9 +60,7 @@ eventClustererSubparser = subparsers.add_parser(
     "clusterEvents", parents=[clusterAnalysis.parser],
     help="Calculates clusters of events across conditions.")
 eventClustererSubparser.set_defaults(which="clusterEvents")''',
-    '''# eventClusterer parser (skipped if sklearn/clusterAnalysis unavailable --
-# not needed for generateEvents/psiPerEvent/diffSplice, only for
-# clusterEvents, which this project doesn't use)
+    '''# eventClusterer parser (skipped if sklearn/clusterAnalysis unavailable)
 if clusterAnalysis is not None:
     eventClustererSubparser = subparsers.add_parser(
         "clusterEvents", parents=[clusterAnalysis.parser],

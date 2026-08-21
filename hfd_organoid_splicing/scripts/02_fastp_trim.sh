@@ -11,29 +11,14 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate biotools
 
-# =============================================================================
-# Phase 2 — fastp trimming (HFD organoid splicing project)
 # Author: Gricey
-# Description: Quality/adapter-artifact trimming on all 15 raw fastq.gz files.
 #
-# Flags are copied EXACTLY from Desmond's brnaseq_pipeline.sh (shared by
-# Kiran 2026-08-03), on purpose -- using different trimming settings would
-# make our splicing results not directly comparable to his DE/proteomics
-# work on the same samples. See notes/pipeline_plan.txt for what each flag
-# does.
-#
-# NOTE ON PARALLELIZATION: Desmond's original script used GNU `parallel` to
-# process multiple samples at once, but his script's paths (/mnt/d/Kiran/...)
-# suggest he ran it on his own Windows/WSL machine, not PSMN -- and no other
-# script in this repo uses `parallel` (they all use plain sequential loops).
-# Rather than assume `parallel` is installed in the biotools env, this script
-# loops sequentially over samples and instead gives fastp multiple threads
-# per sample (--thread), which achieves similar wall-clock speed without the
-# extra dependency.
-#
-# STORAGE: same $SCRATCH rule as previous phases -- raw input, trimmed
-# output, and reports all go on $SCRATCH, only this script lives in $HOME.
-# =============================================================================
+# fastp trimming, all 15 raw fastq.gz files. Flags copied exactly from
+# Desmond's brnaseq_pipeline.sh (poly-G removal, quality sliding window,
+# adapter auto-detect, <35bp discard) so splicing results stay comparable
+# to his DE/proteomics work on the same samples.
+# Sequential loop, not GNU parallel (not installed in biotools) -- fastp
+# gets multiple threads per sample instead.
 
 set -euo pipefail
 
