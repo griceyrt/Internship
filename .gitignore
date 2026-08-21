@@ -1,34 +1,60 @@
-SUPPA/
-data/
-*.gtf
+# macOS / editor cruft
 .DS_Store
-IGV/
-*.app/
-printer/
-*.pdf
-papers/*.pdf
-*.pdf
-papers/*.pdf
-hfd_organoid_splicing/reference/*.pptx
+.Rproj.user/
+.Rhistory
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
 
-# Large raw data files — re-downloadable, not for git
+# Third-party tools/apps (downloaded, not authored here)
+SUPPA/
+IGV/
+
+# Personal/non-lab documents — not for GitHub
+ucbl_report/
+papers/
+
+# Credentials — never track, regardless of extension
+*passkey*
+*Passkey*
+notes/passkey ssh cluster/
+
+# Raw & intermediate data — large, re-downloadable, not for git
+data/
 raw_data/
 temp/
 *.sra
 *.fastq.gz
+*.gtf
+*.gz
 
 # Generated analysis output — code is what's tracked, not results
-# (results/ was already partly tracked from earlier work; this only stops
-# NEW/changed files there from being picked up by future git add)
 results/
+figures/
+DELIVERABLES/
 
-# Auto-generated QC reports — regenerable from raw data, large HTML blobs
+# Deliverable/office file types — kept in the shared lab folder, not git
+*.xlsx
+*.docx
+*.doc
+*.pptx
+*.potx
+*.pdf
+*.key
+*.zip
+*.png
+*.PNG
+*.jpg
+*.jpeg
+*.svg
+*.avif
+*.parquet
+
+# Auto-generated QC / logs
 multiqc_*.html
 *multiqc_report.html
+*.log
 
-# Python/Jupyter/R caches and scratch state — never useful to track
-__pycache__/
-*.pyc
-.ipynb_checkpoints/
-.Rhistory
-.Rproj.user/
+# App bundles
+*.app/
+printer/
