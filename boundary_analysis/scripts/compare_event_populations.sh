@@ -1,23 +1,32 @@
 #!/usr/bin/env bash
 # =============================================================================
 # compare_event_populations.sh
+# Author: Gricey
 #
-# Answers Kiran's three questions about strict vs variable 1nt IOE catalogues:
+# Answers Kiran's three questions about strict vs variable 1nt IOE catalogues
+# (SUPPA generateEvents output for A3/A5/RI events, KM1-9 samples):
 #
 #   Q1 — Which genes go from strict → MORE events? (gained events, both present)
 #   Q2 — Which genes go from 0 → events?           (absent in strict, new in var)
 #   Q3 — Which events involve novel transcripts?    (UUID-format IDs, not ENSMUST)
 #
-# USAGE:
-#   bash compare_event_populations.sh
+# This is the same Q1-Q3 logic reproduced/validated in notebooks/01_filter_events.ipynb
+# (see "Step 5 — Sanity check" there); this script is the plain-awk version.
 #
-# Place in data/ (same level as output_strict/ and output_variable_1nt/)
+# USAGE:
+#   bash scripts/compare_event_populations.sh
+#   (run from anywhere — paths below are resolved relative to this script)
 # =============================================================================
 
 # ── PATHS ────────────────────────────────────────────────────────────────────
-IOE_STRICT="/Users/gricey/Desktop/Internship/data/output_strict/events"
-IOE_VAR1="/Users/gricey/Desktop/Internship/data/output_variable_1nt/events"
-OUTPUT_DIR="/Users/gricey/Desktop/Internship/data/ioe_populations"
+# Resolve everything relative to the script's own location so this works
+# regardless of the current working directory or where the repo is cloned.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="${SCRIPT_DIR}/../data"
+
+IOE_STRICT="${BASE_DIR}/output_strict/events"
+IOE_VAR1="${BASE_DIR}/output_variable_1nt/events"
+OUTPUT_DIR="${BASE_DIR}/ioe_populations"
 mkdir -p "$OUTPUT_DIR"
 
 EVENTS=("A3" "A5" "RI")

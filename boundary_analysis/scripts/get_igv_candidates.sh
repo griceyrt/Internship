@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 # =============================================================================
 # get_igv_candidates.sh
-# Filters SUPPA diffSplice output and returns IGV-ready coordinates
+# Author: Gricey
+#
+# Filters SUPPA diffSplice output (by dPSI/p-value significance, not by event
+# count like igv_filter.sh) and returns IGV-ready coordinates: gene name,
+# dPSI, p-value, and the exact genomic region to zoom into for the alternative
+# (red) region of the event, per event type (SE/RI/A3/A5 have different
+# coordinate layouts, handled in the case block below).
 #
 # USAGE:
 #   bash scripts/get_igv_candidates.sh
+#   (edit the parameters below to change run/event type/comparison)
 # =============================================================================
 
 # ── CHANGE THESE PARAMETERS ──────────────────────────────────────────────────
