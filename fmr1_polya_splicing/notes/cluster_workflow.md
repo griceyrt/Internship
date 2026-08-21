@@ -7,7 +7,7 @@ Three hops — each one only lets you go further, none of them run your job:
 ```
 ssh -A grangel@ssh.psmn.ens-lyon.fr      # gateway, do nothing here
 ssh -A allo-psmn.psmn.ens-lyon.fr        # entry node, can transfer files / basic commands
-ssh -A cl5218comp1                       # login/build node -- this is where you submit jobs from
+ssh -A cl5218comp1                       # login/build node -- submit jobs from
 ```
 
 Then activate your environment:
@@ -16,6 +16,13 @@ Then activate your environment:
 source ~/.bashrc
 conda activate biotools
 ```
+##### From Laurent #####
+(biotools) grangel@cl5218comp1:~/fmr1_polya_splicing/scripts$ cd /Xnfs/igfldb
+(biotools) grangel@cl5218comp1:/Xnfs/igfldb$ df -h .
+Filesystem              Size  Used Avail Use% Mounted on
+r730data7:/data/igfldb   40T   26T   15T  65% /Xnfs/igfldb
+(biotools) grangel@cl5218comp1:/Xnfs/igfldb$ 
+#######################
 
 `prefetch`, `fasterq-dump`, and `pigz` (used by the download script) all confirmed present in this `biotools` env (checked 2026-07-27). Note: this env does *not* have `parallel-fastq-dump` (the tool project 2's `BHARATH_get_sra_dump_fastq_run_salmon.sh` used) — the download script uses `fasterq-dump` + `pigz` instead, which is the modern official sra-tools dumper anyway.
 
