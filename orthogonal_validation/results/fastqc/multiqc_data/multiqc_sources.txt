@@ -1,9 +1,0 @@
-Module	Section	Sample Name	Source
-FastQC	all_sections	SRR9002567	/Users/gricey/Desktop/Internship/orthogonal_validation/results/fastqc/SRR9002567_fastqc.zip
-FastQC	all_sections	SRR9002568	/Users/gricey/Desktop/Internship/orthogonal_validation/results/fastqc/SRR9002568_fastqc.zip
-FastQC	all_sections	SRR9002569	/Users/gricey/Desktop/Internship/orthogonal_validation/results/fastqc/SRR9002569_fastqc.zip
-FastQC	all_sections	SRR9002570	/Users/gricey/Desktop/Internship/orthogonal_validation/results/fastqc/SRR9002570_fastqc.zip
-FastQC	all_sections	SRR9002583	/Users/gricey/Desktop/Internship/orthogonal_validation/results/fastqc/SRR9002583_fastqc.zip
-FastQC	all_sections	SRR9002584	/Users/gricey/Desktop/Internship/orthogonal_validation/results/fastqc/SRR9002584_fastqc.zip
-FastQC	all_sections	SRR9002585	/Users/gricey/Desktop/Internship/orthogonal_validation/results/fastqc/SRR9002585_fastqc.zip
-FastQC	all_sections	SRR9002586	/Users/gricey/Desktop/Internship/orthogonal_validation/results/fastqc/SRR9002586_fastqc.zip

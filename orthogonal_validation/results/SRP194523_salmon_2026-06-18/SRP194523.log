@@ -1,9 +1,0 @@
-Run on Thu Jun 18 12:05:57 CEST 2026
-salmon 2.0.0
-fasterq-dump : 3.4.1
-
-2026-06-18T10:05:57 prefetch.3.4.1: 1) Resolving 'SRR9002567'...
-2026-06-18T10:05:59 prefetch.3.4.1: Current preference is set to retrieve SRA Normalized Format files with full base quality scores
-2026-06-18T10:05:59 prefetch.3.4.1: 1) 'SRR9002567' is found locally 
-2026-06-18T10:05:59 prefetch.3.4.1: 1) Resolving 'SRR9002567's dependencies...
-2026-06-18T10:05:59 prefetch.3.4.1: 'SRR9002567' has 0 unresolved dependencies
